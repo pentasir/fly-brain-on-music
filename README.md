@@ -6,6 +6,14 @@ This app maps audio onto the real FlyWire/CAVE **BANC v888** connectome (~23k ne
 
 The wiring, the neurotransmitter signs, and the spiking dynamics are real, cited science. The audio-to-neural-drive mapping is our own artistic modeling layer — no dataset of real fly neural response to music exists to validate against. Treat this as **connectome-constrained generative art**, not a research claim about how flies perceive music. The app's own "About this project" panel spells out exactly what's real vs. speculative, line by line.
 
+<p align="center">
+  <img src="screenshots/scene-overview.png" width="90%" alt="Full connectome scene, glowing auditory pathway activation">
+</p>
+<p align="center">
+  <img src="screenshots/scene-closeup-1.png" width="44%" alt="Close-up of activated neuron clusters, brain shell">
+  <img src="screenshots/scene-closeup-2.png" width="44%" alt="Close-up of activated neuron clusters, alternate angle">
+</p>
+
 ## What's real vs. speculative
 
 **Real, from published data:**
