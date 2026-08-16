@@ -1,0 +1,6 @@
+# Only needed to regenerate data/connectome/* from scratch via the fetch_*.py
+# scripts (requires your own CAVE/FlyWire auth token -- see src/get_token.py).
+# Not needed to run the app itself; see requirements.txt for that.
+caveclient==8.2.1
+networkx==3.2.1
+matplotlib==3.9.4

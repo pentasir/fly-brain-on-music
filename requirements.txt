@@ -1,0 +1,9 @@
+# Runtime deps for the Streamlit app (src/app.py). This is what Streamlit
+# Community Cloud installs to run the demo -- data/ is already committed to
+# the repo, so the CAVEclient data-fetch pipeline is NOT needed here.
+# See requirements-pipeline.txt to regenerate data/ from scratch instead.
+streamlit==1.50.0
+librosa==0.11.0
+numpy==2.0.2
+scipy==1.13.1
+pandas==2.3.3

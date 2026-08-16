@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Virtual environment
+venv/
+.venv/
+
+# macOS
+.DS_Store
+
+# Streamlit local secrets (if ever added) -- config.toml itself (theme, no secrets) stays tracked
+.streamlit/secrets.toml
+
+# Editor/IDE
+.vscode/
+.idea/
