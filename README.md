@@ -9,10 +9,13 @@ The wiring, the neurotransmitter signs, and the spiking dynamics are real, cited
 <p align="center">
   <img src="screenshots/scene-overview.png" width="90%" alt="Full connectome scene, glowing auditory pathway activation">
 </p>
-<p align="center">
-  <img src="screenshots/scene-closeup-1.png" width="44%" alt="Close-up of activated neuron clusters, brain shell">
-  <img src="screenshots/scene-closeup-2.png" width="44%" alt="Close-up of activated neuron clusters, alternate angle">
-</p>
+
+<table align="center">
+  <tr>
+    <td><img src="screenshots/scene-closeup-1.png" width="100%" alt="Close-up of activated neuron clusters, brain shell"></td>
+    <td><img src="screenshots/scene-closeup-2.png" width="100%" alt="Close-up of activated neuron clusters, alternate angle"></td>
+  </tr>
+</table>
 
 ## What's real vs. speculative
 
