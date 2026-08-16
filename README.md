@@ -1,10 +1,18 @@
 # Fly Brain on Music
 
-Drop in a track and watch it propagate through a **real fruit fly connectome**.
+<div align="center">
 
-This app maps audio onto the real FlyWire/CAVE **BANC v888** connectome (~23k neurons, ~76k real synaptic connections downstream of the fly's actual auditory sensory organ) and simulates activation with a real **leaky integrate-and-fire (LIF)** spiking model, using published parameters from Shiu et al. 2024, *Nature*. The result is rendered as an interactive, audio-synced 3D scene.
+![license MIT](https://img.shields.io/badge/license-MIT-c98a4b) ![connectome real](https://img.shields.io/badge/connectome-real-3fb950) ![neuron model real](https://img.shields.io/badge/neuron%20model-real-3fb950) ![audio mapping artistic](https://img.shields.io/badge/audio%20mapping-artistic-58a6ff) ![runs streamlit](https://img.shields.io/badge/runs-streamlit-58a6ff)
 
-The wiring, the neurotransmitter signs, and the spiking dynamics are real, cited science. The audio-to-neural-drive mapping is our own artistic modeling layer: no dataset of real fly neural response to music exists to validate against. Treat this as **connectome-constrained generative art**, not a research claim about how flies perceive music. The app's own "About this project" panel spells out exactly what's real vs. speculative, line by line.
+</div>
+
+A fruit fly's brain has about 23,000 neurons on its auditory pathway alone, wired by roughly 76,000 real synapses. This project plays it music.
+
+> The wiring is real. What the music means to it is not, and the project says so plainly.
+
+The wiring diagram comes from [FlyWire](https://flywire.ai) and [CAVE](https://www.cave-connectome.org), a real, complete map of a fly brain down to the individual synapse. Drop in a track, and it drives a real simulation of neurons firing and passing signals to each other, using the same equations and settings that [a published brain model](https://www.nature.com/articles/s41586-024-07763-9) used on this same map. The neurons are real. The synapses are real. What renders afterward is an interactive, audio-synced 3D scene, built from each neuron's true position in the brain.
+
+The one part that is not science is the bridge from sound to synapse. No dataset of a fly's real neural response to music exists, so that mapping, loudness and onset and frequency energy translated into synaptic current, is an artistic choice, not a validated model. Call this connectome-constrained generative art, not a claim about how flies hear Chopin. The app's own "About this project" panel draws the line between the two, item by item.
 
 <p align="center">
   <img src="screenshots/scene-overview.png" width="90%" alt="Full connectome scene, glowing auditory pathway activation">
@@ -20,17 +28,17 @@ The wiring, the neurotransmitter signs, and the spiking dynamics are real, cited
 ## What's real vs. speculative
 
 **Real, from published data:**
-- **Connectome**: FlyWire/CAVE's BANC v888 dataset, real neurons, real synapses, real 3D positions. The subgraph is every neuron within 3 hops downstream of Johnston's Organ (the fly's real auditory sensory organ) → AMMC, filtered to connections with ≥12 synapses.
-- **Neurotransmitter identity & sign**: from each neuron's verified (preferred) or predicted NT type. Acetylcholine is excitatory; GABA, glutamate, and histamine are inhibitory, following the fly-specific convention (unlike vertebrate CNS) used in Lappalainen et al. 2024, *Nature*, and Hardie, 1989, *Nature*.
-- **Neuron dynamics**: a real LIF model with published parameters from Shiu et al. 2024, *Nature*, a computational brain model built on this same connectome. Its membrane time constant (20ms) independently matches Gouwens & Wilson 2009's direct electrophysiological measurement.
+- **The wiring.** Real neurons, real synapses, real 3D positions, all from the FlyWire/CAVE map of a fly brain. Specifically, every neuron within three steps of the fly's hearing organ and everything it connects to downstream. [Read about the dataset →](https://www.cave-connectome.org)
+- **Which neurons excite and which calm things down.** Each neuron's chemical signal type decides whether it switches other neurons on or off, following the same rules the actual research uses. [Read the paper →](https://www.nature.com/articles/s41586-024-07763-9)
+- **How neurons fire.** A real, published model of how a neuron builds up charge and fires, run on this same wiring diagram by actual researchers. [Read the paper →](https://www.nature.com/articles/s41586-024-07763-9)
 
 **Speculative, our own modeling layer:**
-- **Audio → neural drive**: loudness, onset, and frequency-band energy mapped to synaptic current. An artistic choice, not a validated model.
-- **"Tonotopic" band split**: FlyWire's public data has no per-neuron frequency-tuning annotation, so the bass/mid/treble seed grouping is a deterministic but arbitrary partition, not a real tonotopic map.
+- **Turning sound into a signal the neurons receive.** No one has ever measured how a fly's brain actually responds to music, so this mapping (how loud, how sudden, which pitches) is our own artistic choice, not a validated model.
+- **Splitting bass, mid, and treble across different neurons.** The public data has no record of which neurons respond to which pitch, so this grouping is made up, just consistent every time you run it.
 
 ## Try it
 
-A public-domain Chopin recording is bundled as the default demo track, so just hit **Run simulation**: no upload needed. White/pink noise control tracks are also available for verifying the simulation reacts to input at all.
+A public-domain recording of Chopin's *Nocturne in E-flat major* is bundled in, so hit **Run simulation** and nothing more is required. White and pink noise are there too, for anyone who wants to see the thing twitch before trusting it with real music.
 
 ## Running locally
 
@@ -61,24 +69,26 @@ Requires your own FlyWire/CAVE account. See [codex.flywire.ai](https://codex.fly
 
 ## How it works
 
-1. **`audio_features.py`**: extracts tempo, RMS loudness, onset strength, and bass/mid/treble band energy from the uploaded track (librosa).
-2. **`simulate.py`**: drives the real connectome graph with those features. Each of the ~23k neurons is a leaky integrate-and-fire unit; real synaptic weights (linear in synapse count, signed by neurotransmitter) propagate spikes hop by hop from the seed (Johnston's Organ) neurons outward. See the module docstring for the full model writeup, including the resolution trade-offs made for interactivity.
-3. **`web_scene.py`** + **`brain_map_3d.py`**: renders the result as a three.js scene using each neuron's real 3D position (from CAVE), colored and sized by simulated activation, audio-synced frame by frame.
-4. **`brain_map.py`**: a standalone, non-interactive 2D schematic fallback (hand-placed neuropil coordinates, not real 3D positions). Not wired into the app, kept as a lightweight backup visualization.
+1. **`audio_features.py`** listens to the track: how loud, how fast, how sudden each moment is, and how much bass/mid/treble it has.
+2. **`simulate.py`** feeds that into the real wiring diagram. Roughly 23,000 neurons pass the signal to each other, hop by hop, starting from the hearing organ and spreading outward, the same way a real nerve signal would travel. The module's own comments walk through the model in more depth for anyone curious.
+3. **`web_scene.py`** and **`brain_map_3d.py`** draw the result: each neuron placed at its real position in the brain, glowing brighter as it fires, in sync with the track.
+4. **`brain_map.py`** is a simple flat backup drawing (not the real 3D positions), kept on hand in case the real scene ever isn't wanted or available. It isn't part of the running app.
 
 ## Build story
 
-This started as a scaffolding-only idea (pull a connectome, drive it with audio, see what happens) and turned into a lot of dead ends and real bug hunts along the way. The highlights, roughly in order:
+It started as scaffolding only: pull a connectome, drive it with sound, see what happens. What actually happened was a season of dead ends and a few real discoveries that reshaped the project more than the original plan ever did.
 
-- **Data access.** The original plan was CAVEclient auth against FlyWire's production dataset. That path stalled, so the connectome ended up being pulled via manual download instead, and the first real graph got built from there.
-- **Pivot to drag-and-drop.** Early versions expected pre-stored audio files per genre. That got scrapped in favor of a simple drag-and-drop uploader, no stored files, so anyone could try their own track.
-- **Finding real 3D coordinates.** The first visualization was a hand-authored schematic (now `brain_map.py`), since no 3D mesh data seemed available from the public export. Real per-neuron 3D positions turned up later in CAVE's `cell_representative_point` table, which unblocked a true 3D visualization and made the schematic a fallback instead of the main view.
-- **Real leaky integrate-and-fire dynamics, called the #1 improvement in the build log.** The activation model went through several iterations (a generic recurrence formula, then various tanh-squashed approximations) before landing on an actual LIF spiking model, then later adopting Shiu et al. 2024's exact published parameters for it, giving the simulation a real, cited membrane time constant instead of an arbitrary one.
-- **Real bugs, not just tuning.** A few genuine correctness bugs got caught and fixed along the way: activation that snapped instantly instead of following the membrane dynamics, a centering bug from targeting the bounding-box midpoint instead of center of mass, a case where the simulation worked on synthetic noise but stayed dead on real songs, and a geometry bug behind an oddly blade-shaped brain hull.
-- **Extending reach.** The auditory subgraph started at 2 hops downstream of Johnston's Organ. It later got extended to a real 3 hops, tuning the synapse-count threshold up to keep the neuron count computationally tractable while reaching further into the real wiring.
-- **UX passes.** Several rounds of cleanup followed once the core simulation was solid: a Streamlit `session_state` bug where touching any widget after running the simulation wiped the whole results view, a dark theme pass to match the scene instead of clashing with Streamlit's default light UI, a loading indicator that nods to the real FlyWire/CAVE segmentation viewer's look, and finally moving the transport controls to sit outside the 3D viewport instead of overlapping it.
+Data access came first and refused to cooperate. CAVEclient authentication against FlyWire's production dataset was the intended path; it stalled, so the connectome got pulled by manual download instead, and the first real graph was built from that. Around the same time, an early assumption that audio files would live pre-stored, one per genre, got scrapped for a plain drag-and-drop uploader. Nothing stored, anyone's track welcome.
 
-The full, unedited development log lives in [`BUILD_LOG.md`](BUILD_LOG.md) if you want the blow-by-blow.
+The visualization was a guess before it was a fact. With no 3D mesh data available from the public export, the first rendering was a hand-authored schematic, still alive today as `brain_map.py`, a fallback rather than the centerpiece it once had to be. The real thing turned up later in CAVE's `cell_representative_point` table: the true anatomical position of every neuron, sitting there the whole time, which is what finally unblocked a real 3D scene.
+
+The single biggest improvement, by the development log's own account, was switching to real leaky integrate-and-fire dynamics. The activation model went through a generic recurrence formula and a few tanh-squashed approximations before landing on an actual LIF spiking model, then later adopting Shiu et al.'s exact published parameters for it, so the membrane time constant would be a number drawn from the literature and independently confirmed, not one picked because it looked reasonable.
+
+Some of the fixes were real bugs, not just tuning: activation that snapped instantly instead of following the membrane dynamics, a centering bug from targeting a bounding box's midpoint instead of its center of mass, a simulation that worked fine on synthetic noise and stayed dead on real songs, and a geometry bug behind a brain hull shaped, for a while, like a blade. The auditory subgraph itself grew too, from two hops downstream of Johnston's Organ to three, the synapse-count threshold raised alongside it to keep the neuron count workable while reaching further into wiring that was real at every step.
+
+What was left, once the simulation could be trusted, was making it legible: a Streamlit `session_state` bug that wiped the entire results view if you so much as touched another widget, a dark theme built to match the scene instead of clashing against Streamlit's default light UI, a loading indicator that nods to the real FlyWire and CAVE segmentation viewer, and finally moving the transport controls outside the 3D viewport instead of floating on top of it.
+
+The unedited log lives in [`BUILD_LOG.md`](BUILD_LOG.md) if any of that is worth the full account.
 
 ## Credits
 
@@ -94,3 +104,7 @@ Code: MIT. See [LICENSE](LICENSE). The connectome data in `data/connectome/` is 
 ## Disclaimer
 
 This is a speculative/artistic simulation, not a validated behavior predictor. The connectome and spiking model are real and cited; the audio-to-neuron-drive mapping and the resulting "behavior" are a modeling choice, not established science.
+
+---
+
+"I discovered in nature the nonutilitarian delights that I sought in art. Both were a form of magic, both were a game of intricate enchantment and deception." ― Vladimir Nabokov
