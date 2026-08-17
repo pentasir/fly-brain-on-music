@@ -1,6 +1,6 @@
-# Fly Brain on Music
-
 <div align="center">
+
+# Fly Brain on Music
 
 [![live demo](https://img.shields.io/badge/live-demo-c98a4b)](https://fly-brain-on-music-xbu8eqftdnxbxupgxbga8z.streamlit.app) ![license MIT](https://img.shields.io/badge/license-MIT-c98a4b) ![connectome real](https://img.shields.io/badge/connectome-real-3fb950) ![neuron model real](https://img.shields.io/badge/neuron%20model-real-3fb950) ![audio mapping artistic](https://img.shields.io/badge/audio%20mapping-artistic-58a6ff) ![runs streamlit](https://img.shields.io/badge/runs-streamlit-58a6ff)
 
