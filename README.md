@@ -17,20 +17,20 @@ The wiring diagram comes from [FlyWire](https://flywire.ai) and [CAVE](https://w
 The one part that is not science is the bridge from sound to synapse. No dataset of a fly's real neural response to music exists, so that mapping, loudness and onset and frequency energy translated into synaptic current, is an artistic choice, not a validated model. Call this connectome-constrained generative art, not a claim about how flies hear Chopin. The app's own "About this project" panel draws the line between the two, item by item.
 
 <p align="center">
-  <img src="screenshots/scene-overview.png" width="90%" alt="Full connectome scene, glowing auditory pathway activation">
+  <img src="screenshots/scene-overview.jpg" width="90%" alt="Full connectome scene, glowing auditory pathway activation">
 </p>
 
 <table align="center">
   <tr>
-    <td><img src="screenshots/scene-closeup-1.png" width="100%" alt="Close-up of activated neuron clusters, brain shell"></td>
-    <td><img src="screenshots/scene-closeup-2.png" width="100%" alt="Close-up of activated neuron clusters, alternate angle"></td>
+    <td><img src="screenshots/scene-closeup-1.jpg" width="100%" alt="Close-up of activated neuron clusters, brain shell"></td>
+    <td><img src="screenshots/scene-closeup-2.jpg" width="100%" alt="Close-up of activated neuron clusters, alternate angle"></td>
   </tr>
 </table>
 
 <table align="center">
   <tr>
-    <td><img src="screenshots/scene-wide-1.jpeg" width="100%" alt="Wide view of the brain and nerve cord shell, glowing activation"></td>
-    <td><img src="screenshots/scene-wide-2.jpeg" width="100%" alt="Wide view from a lower angle, brain and nerve cord shell"></td>
+    <td><img src="screenshots/scene-wide-1.jpg" width="100%" alt="Wide view of the brain and nerve cord shell, glowing activation"></td>
+    <td><img src="screenshots/scene-wide-2.jpg" width="100%" alt="Wide view from a lower angle, brain and nerve cord shell"></td>
   </tr>
 </table>
 
@@ -41,9 +41,9 @@ The one part that is not science is the bridge from sound to synapse. No dataset
 ## What's real vs. speculative
 
 **Real, from published data:**
-- **The wiring.** Real neurons, real synapses, real 3D positions, all from the FlyWire/CAVE map of a fly brain. Specifically, every neuron within three steps of the fly's hearing organ and everything it connects to downstream. [Read about the dataset →](https://www.cave-connectome.org)
-- **Which neurons excite and which calm things down.** Each neuron's chemical signal type decides whether it switches other neurons on or off, following the same rules the actual research uses. [Read the paper →](https://www.nature.com/articles/s41586-024-07763-9)
-- **How neurons fire.** A real, published model of how a neuron builds up charge and fires, run on this same wiring diagram by actual researchers. [Read the paper →](https://www.nature.com/articles/s41586-024-07763-9)
+- **The wiring.** Real neurons, real synapses, real 3D positions, all from the FlyWire/CAVE map of a fly brain. Specifically, every neuron within three steps of the fly's hearing organ and everything it connects to downstream. [Read about the dataset](https://www.cave-connectome.org)
+- **Which neurons excite and which calm things down.** Each neuron's chemical signal type decides whether it switches other neurons on or off, following the same rules the actual research uses. [Read the paper](https://www.nature.com/articles/s41586-024-07763-9)
+- **How neurons fire.** A real, published model of how a neuron builds up charge and fires, run on this same wiring diagram by actual researchers. [Read the paper](https://www.nature.com/articles/s41586-024-07763-9)
 
 **Speculative, our own modeling layer:**
 - **Turning sound into a signal the neurons receive.** No one has ever measured how a fly's brain actually responds to music, so this mapping (how loud, how sudden, which pitches) is our own artistic choice, not a validated model.
