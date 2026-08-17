@@ -89,9 +89,8 @@ _EM_LOADER_TEMPLATE = """
 <style>
   @keyframes proc-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.65); } }
   .proc-card-overlay {
-    position: fixed; inset: 0; z-index: 1000;
     display: flex; align-items: center; justify-content: center;
-    pointer-events: none;
+    width: 100%; margin-top: 32px;
   }
   .proc-card {
     display: inline-flex; flex-direction: column; gap: 10px;
@@ -99,7 +98,6 @@ _EM_LOADER_TEMPLATE = """
     background: #0a0a12; border: 1px solid #232330; border-radius: 10px;
     box-shadow: 0 0 0 1px rgba(143,90,214,0.08), 0 6px 24px rgba(0,0,0,0.45);
     font-family: sans-serif;
-    pointer-events: auto;
   }
   .proc-card__status { display: flex; align-items: center; gap: 8px; }
   .proc-card__dot {
