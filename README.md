@@ -17,6 +17,10 @@ The wiring diagram comes from [FlyWire](https://flywire.ai) and [CAVE](https://w
 The one part that is not science is the bridge from sound to synapse. No dataset of a fly's real neural response to music exists, so that mapping, loudness and onset and frequency energy translated into synaptic current, is an artistic choice, not a validated model. Call this connectome-constrained generative art, not a claim about how flies hear Chopin. The app's own "About this project" panel draws the line between the two, item by item.
 
 <p align="center">
+  <a href="https://fly-brain-on-music-xbu8eqftdnxbxupgxbga8z.streamlit.app"><b>Try it live</b></a>
+</p>
+
+<p align="center">
   <img src="screenshots/scene-overview.jpg" width="90%" alt="Full connectome scene, glowing auditory pathway activation">
 </p>
 
