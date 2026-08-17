@@ -86,7 +86,7 @@ def build_scene_html(
     audio_b64 = base64.b64encode(audio_bytes).decode()
 
     return f"""
-<div id="scene-container" style="width:100%; height:710px; display:flex; flex-direction:column; background:#03030a; border-radius:8px; overflow:hidden;">
+<div id="scene-container" style="width:100%; height:710px; display:flex; flex-direction:column-reverse; background:#03030a; border-radius:8px; overflow:hidden;">
   <div id="canvas-wrap" style="position:relative; flex:1 1 auto; min-height:0;">
     <div id="loading" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#888; font-family:sans-serif; z-index:5;">Loading scene...</div>
     <div style="position:absolute; top:12px; left:12px; z-index:4; background:rgba(10,10,20,0.55); padding:10px 14px; border-radius:6px; font-family:sans-serif; font-size:12px; color:#bbb; max-width:260px; line-height:1.5;">
@@ -144,7 +144,7 @@ def build_scene_html(
       cursor: pointer;
     }}
   </style>
-  <div style="flex:0 0 auto; display:flex; align-items:center; gap:10px; padding:9px 14px; border-top:1px solid #1c1c26; background:#08080e; font-family:sans-serif;">
+  <div style="flex:0 0 auto; display:flex; align-items:center; gap:10px; padding:9px 14px; border-bottom:1px solid #1c1c26; background:#08080e; font-family:sans-serif;">
     <button id="playBtn" aria-label="Play" title="Play" style="background:#8f5ad6; color:#fff; border:none; width:34px; height:34px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 0 10px rgba(143,90,214,0.5); transition:background 0.15s ease, box-shadow 0.15s ease;" onmouseover="this.style.background='#a170e0'" onmouseout="this.style.background='#8f5ad6'"><svg id="playIcon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
     <input id="seek" class="fly-slider" type="range" min="0" max="1000" value="0" style="width:280px;">
     <span id="timeLabel" style="color:#ccc; font-size:12px; width:80px;">0:00 / 0:00</span>
