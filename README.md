@@ -51,7 +51,7 @@ The one part that is not science is the bridge from sound to synapse. No dataset
 
 ## Try it
 
-A public-domain recording of Chopin's *Nocturne in E-flat major* is bundled in, so hit **Run simulation** and nothing more is required. White and pink noise are there too, for anyone who wants to see the thing twitch before trusting it with real music.
+**[Open the live app](https://fly-brain-on-music-xbu8eqftdnxbxupgxbga8z.streamlit.app)**. A public-domain recording of Chopin's *Nocturne in E-flat major* is bundled in, so hit **Run simulation** and nothing more is required. White and pink noise are there too, for anyone who wants to see the thing twitch before trusting it with real music.
 
 ## Running locally
 
