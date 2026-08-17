@@ -88,12 +88,18 @@ CONTROL_TRACKS = {
 _EM_LOADER_TEMPLATE = """
 <style>
   @keyframes proc-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.65); } }
+  .proc-card-overlay {
+    position: fixed; inset: 0; z-index: 1000;
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: none;
+  }
   .proc-card {
     display: inline-flex; flex-direction: column; gap: 10px;
-    margin-top: 8px; padding: 14px 16px;
+    padding: 14px 16px;
     background: #0a0a12; border: 1px solid #232330; border-radius: 10px;
     box-shadow: 0 0 0 1px rgba(143,90,214,0.08), 0 6px 24px rgba(0,0,0,0.45);
     font-family: sans-serif;
+    pointer-events: auto;
   }
   .proc-card__status { display: flex; align-items: center; gap: 8px; }
   .proc-card__dot {
@@ -123,20 +129,26 @@ _EM_LOADER_TEMPLATE = """
   .proc-card__caption {
     color: #6e6e7a; font-size: 10.5px; letter-spacing: 0.3px; text-transform: uppercase;
   }
+  .proc-card__hint {
+    color: #55555f; font-size: 11px; font-style: italic;
+  }
 </style>
-<div class="proc-card">
-  <div class="proc-card__status">
-    <span class="proc-card__dot"></span>
-    <span class="proc-card__label">{stage_label}</span>
+<div class="proc-card-overlay">
+  <div class="proc-card">
+    <div class="proc-card__status">
+      <span class="proc-card__dot"></span>
+      <span class="proc-card__label">{stage_label}</span>
+    </div>
+    <div class="proc-card__video">
+      <video id="em-loader-video" autoplay loop muted playsinline>
+        <source src="data:video/mp4;base64,__EM_LOADER_VIDEO_B64__" type="video/mp4">
+      </video>
+      <div class="proc-card__vignette"></div>
+      <div class="proc-card__live"><span class="proc-card__live-dot"></span>LIVE TRACE</div>
+    </div>
+    <div class="proc-card__caption">FlyWire / CAVE segmentation viewer</div>
+    <div class="proc-card__hint">This might take a second&hellip; or two&hellip;</div>
   </div>
-  <div class="proc-card__video">
-    <video id="em-loader-video" autoplay loop muted playsinline>
-      <source src="data:video/mp4;base64,__EM_LOADER_VIDEO_B64__" type="video/mp4">
-    </video>
-    <div class="proc-card__vignette"></div>
-    <div class="proc-card__live"><span class="proc-card__live-dot"></span>LIVE TRACE</div>
-  </div>
-  <div class="proc-card__caption">FlyWire / CAVE segmentation viewer</div>
 </div>
 <script>
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
