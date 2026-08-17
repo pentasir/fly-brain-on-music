@@ -34,6 +34,10 @@ The one part that is not science is the bridge from sound to synapse. No dataset
   </tr>
 </table>
 
+<p align="center">
+  <video src="https://github.com/user-attachments/assets/9936f52c-4505-4f35-9957-4152a2787bd8" controls width="90%"></video>
+</p>
+
 ## What's real vs. speculative
 
 **Real, from published data:**
