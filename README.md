@@ -6,6 +6,8 @@
 
 </div>
 
+Ever wondered what a fly's brain looks like while listening to music?
+
 A fruit fly's brain has about 23,000 neurons on its auditory pathway alone, wired by roughly 76,000 real synapses. This project plays it music.
 
 > The wiring is real. What the music means to it is not, and the project says so plainly.
@@ -22,6 +24,13 @@ The one part that is not science is the bridge from sound to synapse. No dataset
   <tr>
     <td><img src="screenshots/scene-closeup-1.png" width="100%" alt="Close-up of activated neuron clusters, brain shell"></td>
     <td><img src="screenshots/scene-closeup-2.png" width="100%" alt="Close-up of activated neuron clusters, alternate angle"></td>
+  </tr>
+</table>
+
+<table align="center">
+  <tr>
+    <td><img src="screenshots/scene-wide-1.jpeg" width="100%" alt="Wide view of the brain and nerve cord shell, glowing activation"></td>
+    <td><img src="screenshots/scene-wide-2.jpeg" width="100%" alt="Wide view from a lower angle, brain and nerve cord shell"></td>
   </tr>
 </table>
 
