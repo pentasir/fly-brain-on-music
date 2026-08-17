@@ -50,20 +50,20 @@ st.markdown(
 
 ABOUT_MD = """
 **Real, from published data:**
-- **Connectome**: FlyWire/CAVE's BANC v888 dataset — real neurons, real synapses, real 3D positions.
+- **Connectome**: FlyWire/CAVE's BANC v888 dataset, real neurons, real synapses, real 3D positions.
   Subgraph = every neuron within 3 hops downstream of Johnston's Organ (the fly's real auditory
   sensory organ) → AMMC, filtered to connections with ≥12 synapses.
 - **Neurotransmitter identity & sign**: from `neurons.csv`'s verified (preferred) or predicted NT type
-  per neuron. Acetylcholine = excitatory; GABA, glutamate, and histamine = inhibitory — the glutamate/
+  per neuron. Acetylcholine = excitatory; GABA, glutamate, and histamine = inhibitory. The glutamate/
   histamine calls are the non-obvious ones: unlike vertebrate CNS, *Drosophila* glutamate mostly acts
   through inhibitory glutamate-gated chloride channels (convention per Lappalainen et al. 2024, *Nature*),
   and histamine is inhibitory via histamine-gated chloride channels (Hardie, 1989, *Nature*).
 - **Neuron dynamics**: real leaky integrate-and-fire equations with published parameters from
-  Shiu et al. 2024, *Nature* — a computational brain model built on this same connectome. Membrane
+  Shiu et al. 2024, *Nature*, a computational brain model built on this same connectome. Membrane
   time constant (20ms) independently matches Gouwens & Wilson 2009's direct electrophysiological
   measurement, a genuine cross-validation between two different sources.
 
-**Speculative, our own modeling layer — not from literature:**
+**Speculative, our own modeling layer, not from literature:**
 - **Audio → neural drive**: no dataset of real fly neural response to music exists anywhere, so this
   mapping (loudness/onset/frequency-band energy → synaptic current) is an artistic choice, not a
   validated model.
@@ -173,14 +173,14 @@ def render_setup_controls(use_columns: bool):
         "The wiring is real; the audio-to-activation mapping is a speculative "
         "simulation layer, not a validated model of real fly behavior."
     )
-    with st.expander("About this project — what's real vs. speculative"):
+    with st.expander("About this project: what's real vs. speculative"):
         st.markdown(ABOUT_MD)
 
     uploaded = st.file_uploader("Drop an audio file", type=["mp3", "wav", "m4a", "flac", "ogg"])
 
     track_help = (
         "Defaults to a public-domain Chopin recording as a quick demo. White/pink noise "
-        "are synthetic test signals, not music — useful for verifying the simulation "
+        "are synthetic test signals, not music, useful for verifying the simulation "
         "reacts at all. Can sound harsh/loud; volume starts low."
     )
     processing = st.session_state.get("processing", False)
@@ -281,7 +281,7 @@ if "result" in st.session_state:
     with meta_col:
         st.markdown(
             f"<div style='padding-top:0.4rem; color:#9a9a9a; font-size:0.85rem;'>"
-            f"<b>{source_name}</b> — {features['tempo']:.0f} BPM, ~{features['times'][-1]:.0f}s</div>",
+            f"<b>{source_name}</b>: {features['tempo']:.0f} BPM, ~{features['times'][-1]:.0f}s</div>",
             unsafe_allow_html=True,
         )
     with shell_col:
@@ -300,7 +300,7 @@ if "result" in st.session_state:
     st.markdown("<div style='margin-top:-0.8rem;'></div>", unsafe_allow_html=True)
     components.html(html, height=730)
 
-    with st.expander("Simulation details — activation charts, frequency response, top neurons"):
+    with st.expander("Simulation details: activation charts, frequency response, top neurons"):
         chart_df = pd.DataFrame(
             {
                 "time_s": result["times"],
