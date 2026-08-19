@@ -261,8 +261,18 @@ def run_simulation(
     # the whole-mix onset envelope) -- this is what makes the sim differentiate
     # spectral content, not just overall loudness.
     shared = 0.15 * features["rms"] + 0.1 * features["onset"]
+    # percussive-dominated moments (drum hits) lean harder on the sharp,
+    # transient onset term; harmonic-dominated moments (held chords, sustained
+    # tones) lean harder on the smoother band-energy term -- two structurally
+    # different response modes instead of one blended signal for both.
+    perc_ratio = features["percussive_ratio"]
+    harm_ratio = 1.0 - perc_ratio
     drive_by_band = {
-        b: drive_scale * (shared + 0.75 * features["bands"][b] + 0.4 * features["band_onsets"][b])
+        b: drive_scale * (
+            shared
+            + 0.75 * features["bands"][b] * (0.5 + 0.5 * harm_ratio)
+            + 0.4 * features["band_onsets"][b] * (0.5 + 0.5 * perc_ratio)
+        )
         for b in range(N_BANDS)
     }
     band_masks = {b: (band_group == b).astype(np.float64) for b in range(N_BANDS)}

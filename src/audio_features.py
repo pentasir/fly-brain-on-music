@@ -15,9 +15,19 @@ def extract_features(y: np.ndarray, sr: int, n_frames: int = 150) -> dict:
     duration = len(y) / sr
     hop_length = 512
 
+    # Percussive/harmonic source separation (median-filtering based, Fitzgerald
+    # 2010): splits the mix into a percussive component (drums, transients) and
+    # a harmonic component (sustained tones, chords) before feature extraction,
+    # so the two can drive structurally different response character downstream
+    # (sharp/transient vs. smooth/sustained) instead of one blended signal.
+    y_harmonic, y_percussive = librosa.effects.hpss(y)
+
     rms = librosa.feature.rms(y=y, hop_length=hop_length)[0]
     onset_env = librosa.onset.onset_strength(y=y, sr=sr, hop_length=hop_length)
     tempo, _ = librosa.beat.beat_track(y=y, sr=sr, hop_length=hop_length)
+
+    percussive_rms = librosa.feature.rms(y=y_percussive, hop_length=hop_length)[0]
+    harmonic_rms = librosa.feature.rms(y=y_harmonic, hop_length=hop_length)[0]
 
     # Mel spectrogram: frequency bins spaced to approximate cochlear tuning
     # (denser at low frequencies), then log-compressed (power_to_db) so loud
@@ -70,12 +80,22 @@ def extract_features(y: np.ndarray, sr: int, n_frames: int = 150) -> dict:
     onset_hi = max(o.max() for o in onsets_r)
     onsets_norm = [normalize(o, onset_lo, onset_hi) for o in onsets_r]
 
+    # Percussive/harmonic ratio per frame, not independently-normalized absolute
+    # energy -- what matters for shaping response character is which one
+    # DOMINATES a given moment (a drum hit vs. a held chord), not their raw
+    # levels (which are already reflected in rms/bands above).
+    perc_r = resample(percussive_rms)
+    harm_r = resample(harmonic_rms)
+    total_r = perc_r + harm_r
+    percussive_ratio = np.divide(perc_r, total_r, out=np.full_like(perc_r, 0.5), where=total_r > 0)
+
     features = {
         "times": np.linspace(0, duration, n_frames),
         "rms": normalize(resample(rms)),
         "onset": normalize(resample(onset_env)),
         "bands": bands_norm,  # list of N_BANDS arrays, low frequency -> high
         "band_onsets": onsets_norm,  # list of N_BANDS arrays, per-band transient strength
+        "percussive_ratio": percussive_ratio,  # 0..1, how percussive- vs. harmonic-dominated each frame is
         "tempo": float(tempo) if np.isscalar(tempo) else float(tempo[0]),
     }
     return features
