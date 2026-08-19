@@ -184,9 +184,10 @@ def render_setup_controls(use_columns: bool):
         value=False,
         help=(
             "Locks simulation frames to the track's detected beat instead of a fixed clock, so "
-            "activation pulses with the actual musical pulse. Needs a real, steady beat -- silently "
-            "falls back to fixed-rate timing on rubato/free-tempo or beatless material (e.g. the "
-            "Chopin demo, ambient, noise)."
+            "activation pulses with the actual musical pulse. Only falls back to fixed-rate timing "
+            "when too few beats are detected at all (very short clips, silence) -- librosa's beat "
+            "tracker finds a usable pulse on most material, including free-tempo/rubato pieces, so "
+            "this engages more often than the name might suggest."
         ),
     )
 
