@@ -179,6 +179,17 @@ def render_setup_controls(use_columns: bool):
 
     uploaded = st.file_uploader("Drop an audio file", type=["mp3", "wav", "m4a", "flac", "ogg"])
 
+    beat_sync = st.checkbox(
+        "Beat-synced timing (experimental)",
+        value=False,
+        help=(
+            "Locks simulation frames to the track's detected beat instead of a fixed clock, so "
+            "activation pulses with the actual musical pulse. Needs a real, steady beat -- silently "
+            "falls back to fixed-rate timing on rubato/free-tempo or beatless material (e.g. the "
+            "Chopin demo, ambient, noise)."
+        ),
+    )
+
     track_help = (
         "Defaults to a public-domain Chopin recording as a quick demo. White/pink noise "
         "are synthetic test signals, not music, useful for verifying the simulation "
@@ -203,7 +214,7 @@ def render_setup_controls(use_columns: bool):
         run = st.button(button_label, type="primary", use_container_width=True, disabled=processing)
 
     status_ph = st.empty()
-    return uploaded, noise_choice, run, status_ph
+    return uploaded, noise_choice, run, status_ph, beat_sync
 
 
 has_result = "result" in st.session_state
@@ -211,7 +222,7 @@ has_result = "result" in st.session_state
 if not has_result:
     # First visit: full setup takes the whole page, nothing to compete with yet.
     st.title("Fly Brain on Music")
-    uploaded, noise_choice, run, status_ph = render_setup_controls(use_columns=True)
+    uploaded, noise_choice, run, status_ph, beat_sync = render_setup_controls(use_columns=True)
 else:
     # A result already exists: the scene is the page now. Setup collapses into
     # one compact strip above it instead of pushing the scene below the fold.
@@ -223,7 +234,7 @@ else:
         )
     with top_col2:
         with st.popover("Change input", use_container_width=True):
-            uploaded, noise_choice, run, status_ph = render_setup_controls(use_columns=False)
+            uploaded, noise_choice, run, status_ph, beat_sync = render_setup_controls(use_columns=False)
 
 # Computing on button click, but RENDERING from session_state below -- st.button()
 # only returns True on the exact script run where it was clicked, so any widget
@@ -255,7 +266,7 @@ if st.session_state.get("processing"):
 
         loader_ph = status_ph.empty()  # one slot, overwritten per stage -- a plain container() would stack both cards
         loader_ph.markdown(render_loader("Extracting audio features…"), unsafe_allow_html=True)
-        features = extract_features(y, sr)
+        features = extract_features(y, sr, beat_sync=beat_sync)
         loader_ph.markdown(render_loader("Propagating through the connectome…"), unsafe_allow_html=True)
         result = run_simulation(features, node_snapshot_stride=3)
     except Exception as e:
@@ -280,9 +291,10 @@ if "result" in st.session_state:
 
     meta_col, shell_col = st.columns([1, 2])
     with meta_col:
+        timing_note = " &middot; beat-synced" if features.get("beat_sync_used") else ""
         st.markdown(
             f"<div style='padding-top:0.4rem; color:#9a9a9a; font-size:0.85rem;'>"
-            f"<b>{source_name}</b>: {features['tempo']:.0f} BPM, ~{features['times'][-1]:.0f}s</div>",
+            f"<b>{source_name}</b>: {features['tempo']:.0f} BPM, ~{features['times'][-1]:.0f}s{timing_note}</div>",
             unsafe_allow_html=True,
         )
     with shell_col:

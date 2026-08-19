@@ -323,16 +323,24 @@ def run_simulation(
     pitch_idx = [pitch_group == p for p in range(N_PITCHES)]
 
     times = features["times"]
-    frame_duration_s = (times[1] - times[0]) if n_frames > 1 else max(times[-1], 0.1)
-    frame_duration_ms = frame_duration_s * 1000.0
-    # Substep count derived from a FIXED target dt, not the other way around --
-    # long tracks have long audio frames, and a fixed substep count would silently
-    # blow dt past tau_m (numerically unstable) for anything much longer than the
-    # ~30s clips this was originally tuned against. See constants above.
-    n_substeps = int(np.clip(round(frame_duration_ms / TARGET_DT_MS), 1, MAX_SUBSTEPS_PER_FRAME))
-    dt_ms = frame_duration_ms / n_substeps
+    # Per-frame duration, not one global value computed from times[1]-times[0] --
+    # fixed-rate framing has uniform spacing so that was equivalent to computing
+    # it once, but beat-synced framing (see audio_features.py's beat_sync) has
+    # genuinely irregular frame spacing (tempo drift, rubato), and a fixed
+    # substep COUNT derived from a single global duration would silently blow dt
+    # past tau_m (numerically unstable, same failure mode already documented
+    # above) on whichever frames are longer than that global estimate.
+    if n_frames > 1:
+        frame_durations_s = np.diff(times, append=times[-1] + (times[-1] - times[-2]))
+    else:
+        frame_durations_s = np.array([max(times[-1], 0.1)])
 
     for t in range(n_frames):
+        frame_duration_ms = frame_durations_s[t] * 1000.0
+        # See constants above (TARGET_DT_MS, MAX_SUBSTEPS_PER_FRAME).
+        n_substeps = int(np.clip(round(frame_duration_ms / TARGET_DT_MS), 1, MAX_SUBSTEPS_PER_FRAME))
+        dt_ms = frame_duration_ms / n_substeps
+
         drive_vec = sum(drive_by_band[b][t] * band_masks[b] for b in range(N_BANDS))
         pitch_factor_vec = sum(pitch_factor_by_pitch[p][t] * pitch_masks[p] for p in range(N_PITCHES))
         drive_vec = drive_vec * pitch_factor_vec

@@ -20,7 +20,23 @@ N_PITCHES = 12
 PITCH_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
 
-def extract_features(y: np.ndarray, sr: int, n_frames: int = 150) -> dict:
+# Minimum detected beats before beat-synced timing is trusted -- below this,
+# librosa's beat tracker is usually either failing outright (silence, pure
+# noise) or picking up a spurious/unstable pulse on material that has no real
+# beat (e.g. free-tempo rubato piano), and forcing a grid onto it would distort
+# timing rather than sync it. Falls back to fixed-rate framing in that case.
+MIN_BEATS_FOR_SYNC = 8
+
+# Hard cap on beat-synced frame count -- see the thinning step below for why.
+MAX_BEAT_FRAMES = 300
+
+
+def extract_features(y: np.ndarray, sr: int, n_frames: int = 150, beat_sync: bool = False, subdivisions: int = 2) -> dict:
+    """beat_sync=True re-anchors simulation frames to the track's detected beat
+    grid (subdivisions per beat) instead of a fixed wall-clock rate -- opt-in,
+    since it only makes sense for material with a real, steady pulse. Falls
+    back to fixed-rate framing (and reports why via "beat_sync_used"=False) if
+    too few beats are detected."""
     duration = len(y) / sr
     hop_length = 512
 
@@ -33,7 +49,32 @@ def extract_features(y: np.ndarray, sr: int, n_frames: int = 150) -> dict:
 
     rms = librosa.feature.rms(y=y, hop_length=hop_length)[0]
     onset_env = librosa.onset.onset_strength(y=y, sr=sr, hop_length=hop_length)
-    tempo, _ = librosa.beat.beat_track(y=y, sr=sr, hop_length=hop_length)
+    tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr, hop_length=hop_length)
+    beat_times = librosa.frames_to_time(beat_frames, sr=sr, hop_length=hop_length)
+
+    beat_sync_used = beat_sync and len(beat_times) >= MIN_BEATS_FOR_SYNC
+    if beat_sync_used:
+        # subdivided beat grid: `subdivisions` frames per beat interval, plus the
+        # track's start/end so nothing before the first beat or after the last
+        # is silently dropped.
+        grid = [0.0]
+        for i in range(len(beat_times) - 1):
+            grid.extend(np.linspace(beat_times[i], beat_times[i + 1], subdivisions, endpoint=False))
+        grid.append(beat_times[-1])
+        if beat_times[-1] < duration:
+            grid.append(duration)
+        times = np.array(sorted(set(grid)))
+        # Bounds worst-case runtime/payload size for long and/or fast-tempo tracks
+        # (same philosophy as simulate.py's MAX_SUBSTEPS_PER_FRAME) -- a 4.5 minute
+        # track at a brisk tempo can produce 800+ beat-grid frames vs. fixed mode's
+        # 150, which meant ~6x simulation time and a much larger embedded HTML
+        # payload (proportionally more node snapshots). Thinning evenly keeps the
+        # frames still beat-anchored, just coarser.
+        if len(times) > MAX_BEAT_FRAMES:
+            keep = np.linspace(0, len(times) - 1, MAX_BEAT_FRAMES).round().astype(int)
+            times = times[np.unique(keep)]
+    else:
+        times = np.linspace(0, duration, n_frames)
 
     percussive_rms = librosa.feature.rms(y=y_percussive, hop_length=hop_length)[0]
     harmonic_rms = librosa.feature.rms(y=y_harmonic, hop_length=hop_length)[0]
@@ -64,10 +105,15 @@ def extract_features(y: np.ndarray, sr: int, n_frames: int = 150) -> dict:
     # log-power spectrogram) rather than recomputing a separate STFT per band.
     band_onsets = [librosa.onset.onset_strength(S=s, sr=sr, hop_length=hop_length) for s in band_slices]
 
+    # Resample onto `times` (not a fixed n_frames linspace) so the same function
+    # works for both fixed-rate and beat-synced framing -- fixed mode's `times`
+    # IS a uniform linspace, so this is numerically identical to the old
+    # behavior there; beat-synced mode's `times` is the irregular beat grid.
+    time_frac = np.clip(times / duration, 0, 1) if duration > 0 else np.zeros_like(times)
+
     def resample(arr):
         x_old = np.linspace(0, 1, len(arr))
-        x_new = np.linspace(0, 1, n_frames)
-        return np.interp(x_new, x_old, arr)
+        return np.interp(time_frac, x_old, arr)
 
     def normalize(arr, lo=None, hi=None):
         lo = arr.min() if lo is None else lo
@@ -112,7 +158,7 @@ def extract_features(y: np.ndarray, sr: int, n_frames: int = 150) -> dict:
     chroma_norm = [normalize(c, chroma_lo, chroma_hi) for c in chroma_r]
 
     features = {
-        "times": np.linspace(0, duration, n_frames),
+        "times": times,
         "rms": normalize(resample(rms)),
         "onset": normalize(resample(onset_env)),
         "bands": bands_norm,  # list of N_BANDS arrays, low frequency -> high
@@ -120,5 +166,6 @@ def extract_features(y: np.ndarray, sr: int, n_frames: int = 150) -> dict:
         "percussive_ratio": percussive_ratio,  # 0..1, how percussive- vs. harmonic-dominated each frame is
         "chroma": chroma_norm,  # list of N_PITCHES arrays, pitch-class energy (C, C#, D, ... B)
         "tempo": float(tempo) if np.isscalar(tempo) else float(tempo[0]),
+        "beat_sync_used": beat_sync_used,  # False if beat_sync wasn't requested, or too few beats were detected
     }
     return features
