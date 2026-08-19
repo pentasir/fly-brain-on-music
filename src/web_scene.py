@@ -86,6 +86,23 @@ def build_scene_html(
         g_cmax = float(np.percentile(g_vals, 95)) if g_vals.size else cmax
         cmax_by_group.append(g_cmax if g_cmax - cmin >= 1e-3 else cmax)
 
+    # PER-NODE ceiling, not just per-group: a small number of individual "hub"
+    # neurons (heavily-connected downstream targets) can sit near their own
+    # ceiling almost constantly, which the group-level fix above doesn't catch
+    # since they're part of what defines that group's ceiling -- they show up as
+    # a couple of permanently-saturated white clusters regardless of the music.
+    # Stretching each node's OWN 95th-percentile-across-time to its own ceiling
+    # guarantees every node gets real quiet-vs-loud contrast, including hubs.
+    if node_snapshots:
+        node_vals_stack = np.stack([state[has_pos] for _, state in node_snapshots], axis=0)  # (n_snap, n_nodes)
+        node_cmax = np.percentile(node_vals_stack, 95, axis=0)
+        group_cmax_arr = np.array([cmax_by_group[g] for g in hop_group])
+        # degenerate/near-silent nodes fall back to their group's ceiling rather
+        # than a near-zero span, which would amplify tiny noise into flicker.
+        node_cmax = np.where(node_cmax - cmin >= 1e-3, node_cmax, group_cmax_arr)
+    else:
+        node_cmax = np.full(len(fx), cmax)
+
     times = [t for t, _ in node_snapshots]
     frames_values = [_round(state[has_pos], 3) for _, state in node_snapshots]
 
@@ -98,6 +115,7 @@ def build_scene_html(
         "cmin": cmin,
         "cmax": cmax,
         "cmaxByGroup": cmax_by_group,
+        "nodeCmax": _round(node_cmax, 4),
         "brainHull": {"vertices": _round(brain_hull_verts.flatten(), 2), "faces": hulls["brain"]["faces"]},
         "vncHull": {"vertices": _round(vnc_hull_verts.flatten(), 2), "faces": hulls["vnc"]["faces"]},
     }
@@ -343,9 +361,16 @@ scene.add(new THREE.Points(fgGeo, fgMat));
 const baseSizes = new Float32Array(nFg);
 for (let i = 0; i < nFg; i++) baseSizes[i] = DATA.isSeed[i] ? 0.09 : 0.05;
 
-const spanByGroup = DATA.cmaxByGroup.map(cmax => Math.max(cmax - DATA.cmin, 1e-6));
+// PER-NODE span, not per-group: a handful of individual "hub" neurons (heavily
+// connected downstream targets) can sit near their own ceiling almost
+// constantly, which a group-level scale doesn't catch since they're part of
+// what defines that group's ceiling -- they'd show up as a couple of
+// permanently-saturated white clusters regardless of the music. Stretching
+// each node's own range to its own ceiling guarantees every node, hubs
+// included, shows real quiet-vs-loud contrast.
+const spanByNode = DATA.nodeCmax.map(cmax => Math.max(cmax - DATA.cmin, 1e-6));
 // Per-group gamma, not one curve for everyone. Seed neurons receive raw drive
-// directly and stay elevated most of the track even after per-group span
+// directly and stay elevated most of the track even after per-node span
 // normalization above (median activity sits well above half of their own
 // peak) -- a >1 exponent compresses/darkens that group so genuinely quiet
 // moments read dark instead of "always lit." Hop1/hop2+ are sparser (real LIF
@@ -357,7 +382,7 @@ function applyActivation(values) {{
   const colors = colorAttr.array, sizes = sizeAttr.array;
   for (let i = 0; i < nFg; i++) {{
     const group = DATA.hopGroup[i];
-    const span = spanByGroup[group];
+    const span = spanByNode[i];
     const raw = Math.min(1, Math.max(0, (values[i] - DATA.cmin) / span));
     const norm = Math.pow(raw, gammaByGroup[group]);
     const [r,g,b] = infernoColor(norm);
