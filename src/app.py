@@ -296,7 +296,7 @@ if "result" in st.session_state:
     with st.spinner("Building scene..."):
         html = build_scene_html(
             result["node_root_ids"], result["node_snapshots"], result["node_is_seed"], audio_bytes, mime,
-            shell_style=shell_style,
+            node_hop=result["node_hop"], shell_style=shell_style,
         )
     st.markdown("<div style='margin-top:-0.8rem;'></div>", unsafe_allow_html=True)
     components.html(html, height=730)

@@ -407,4 +407,5 @@ def run_simulation(
         node_root_ids=arrays["root_ids"],
         node_labels=arrays["labels"],
         node_is_seed=seed_mask.astype(bool),
+        node_hop=dist,
     )

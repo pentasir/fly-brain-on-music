@@ -31,6 +31,7 @@ def build_scene_html(
     is_seed: np.ndarray,
     audio_bytes: bytes,
     audio_mime: str,
+    node_hop: np.ndarray = None,
     shell_style: str = "smooth",
 ) -> str:
     positions = load_positions()
@@ -69,16 +70,34 @@ def build_scene_html(
     if cmax - cmin < 1e-3:
         cmax = 1.0
 
+    # Color/brightness normalized PER HOP GROUP (seed / hop1 / hop2+), not against
+    # one global scale. Seed neurons receive the raw external drive directly and
+    # spike far more readily than downstream neurons that only get filtered
+    # synaptic input -- against one global scale, seed sits pinned near the
+    # brightest color almost the entire track regardless of the music (it always
+    # dominates the global 95th percentile), which reads as "always lit at the
+    # bottom" rather than responding to the track's actual dynamics. Normalizing
+    # each hop group against its own range restores real quiet-vs-loud contrast
+    # within the seed layer itself.
+    hop_group = np.clip(node_hop[has_pos], 0, 2).astype(int) if node_hop is not None else np.zeros(len(fx), dtype=int)
+    cmax_by_group = []
+    for g in range(3):
+        g_vals = np.concatenate([state[has_pos][hop_group == g] for _, state in node_snapshots]) if node_snapshots and (hop_group == g).any() else np.array([])
+        g_cmax = float(np.percentile(g_vals, 95)) if g_vals.size else cmax
+        cmax_by_group.append(g_cmax if g_cmax - cmin >= 1e-3 else cmax)
+
     times = [t for t, _ in node_snapshots]
     frames_values = [_round(state[has_pos], 3) for _, state in node_snapshots]
 
     data = {
         "fgPositions": _round(fg_positions.flatten(), 2),
         "isSeed": seed_kept.astype(int).tolist(),
+        "hopGroup": hop_group.tolist(),
         "times": times,
         "frames": frames_values,
         "cmin": cmin,
         "cmax": cmax,
+        "cmaxByGroup": cmax_by_group,
         "brainHull": {"vertices": _round(brain_hull_verts.flatten(), 2), "faces": hulls["brain"]["faces"]},
         "vncHull": {"vertices": _round(vnc_hull_verts.flatten(), 2), "faces": hulls["vnc"]["faces"]},
     }
@@ -324,16 +343,23 @@ scene.add(new THREE.Points(fgGeo, fgMat));
 const baseSizes = new Float32Array(nFg);
 for (let i = 0; i < nFg; i++) baseSizes[i] = DATA.isSeed[i] ? 0.09 : 0.05;
 
+const spanByGroup = DATA.cmaxByGroup.map(cmax => Math.max(cmax - DATA.cmin, 1e-6));
+// Per-group gamma, not one curve for everyone. Seed neurons receive raw drive
+// directly and stay elevated most of the track even after per-group span
+// normalization above (median activity sits well above half of their own
+// peak) -- a >1 exponent compresses/darkens that group so genuinely quiet
+// moments read dark instead of "always lit." Hop1/hop2+ are sparser (real LIF
+// spiking is graded/patchy downstream), so they keep the original <1 boost
+// that lifts moderate activity into visibly-lit range.
+const gammaByGroup = [1.6, 1.0, 0.5];
+
 function applyActivation(values) {{
   const colors = colorAttr.array, sizes = sizeAttr.array;
-  const span = Math.max(DATA.cmax - DATA.cmin, 1e-6);
   for (let i = 0; i < nFg; i++) {{
+    const group = DATA.hopGroup[i];
+    const span = spanByGroup[group];
     const raw = Math.min(1, Math.max(0, (values[i] - DATA.cmin) / span));
-    // perceptual boost: real LIF activity is sparser/more graded than the old
-    // continuous model, and Inferno reads dark below ~50% -- sqrt curve lifts
-    // midtones so genuine (if moderate) activity still reads as visibly lit,
-    // without changing the underlying relative ordering/values.
-    const norm = Math.sqrt(raw);
+    const norm = Math.pow(raw, gammaByGroup[group]);
     const [r,g,b] = infernoColor(norm);
     colors[i*3] = r; colors[i*3+1] = g; colors[i*3+2] = b;
     sizes[i] = baseSizes[i] * (1.0 + norm * 3.5);
