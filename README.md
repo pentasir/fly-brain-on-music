@@ -50,8 +50,8 @@ The one part that is not science is the bridge from sound to synapse. No dataset
 - **How neurons fire.** A real, published model of how a neuron builds up charge and fires, run on this same wiring diagram by actual researchers. [Read the paper](https://www.nature.com/articles/s41586-024-07763-9)
 
 **Speculative, our own modeling layer:**
-- **Turning sound into a signal the neurons receive.** No one has ever measured how a fly's brain actually responds to music, so this mapping (how loud, how sudden, which pitches) is our own artistic choice, not a validated model.
-- **Splitting bass, mid, and treble across different neurons.** The public data has no record of which neurons respond to which pitch, so this grouping is made up, just consistent every time you run it.
+- **Turning sound into a signal the neurons receive.** No one has ever measured how a fly's brain actually responds to music, so this mapping (how loud, how sudden, which pitches) is our own artistic choice, not a validated model. As of the latest update, "which pitches" comes from a mel spectrogram (frequency bins spaced denser at low pitches, sparser at high, the same shape as real cochlear tuning) with log compression, instead of a plain linear-frequency FFT.
+- **Splitting 8 frequency bands across different neurons.** The public data has no record of which neurons respond to which pitch, so this grouping is made up, just consistent every time you run it. Previously a coarse 3-way bass/mid/treble split; now 8 mel-spaced bands, giving the sim finer, more differentiated spectral response.
 
 ## Try it
 
@@ -86,8 +86,8 @@ Requires your own FlyWire/CAVE account. See [codex.flywire.ai](https://codex.fly
 
 ## How it works
 
-1. **`audio_features.py`** listens to the track: how loud, how fast, how sudden each moment is, and how much bass/mid/treble it has.
-2. **`simulate.py`** feeds that into the real wiring diagram. Roughly 23,000 neurons pass the signal to each other, hop by hop, starting from the hearing organ and spreading outward, the same way a real nerve signal would travel. The module's own comments walk through the model in more depth for anyone curious.
+1. **`audio_features.py`** listens to the track: how loud, how fast, how sudden each moment is, and its energy across 8 mel-spaced frequency bands (log-compressed, cochlear-style spacing, low to high).
+2. **`simulate.py`** feeds that into the real wiring diagram. Roughly 23,000 neurons pass the signal to each other, hop by hop, starting from the hearing organ and spreading outward, the same way a real nerve signal would travel. Seed neurons are split across the 8 frequency bands so different populations respond to different pitches. The module's own comments walk through the model in more depth for anyone curious.
 3. **`web_scene.py`** and **`brain_map_3d.py`** draw the result: each neuron placed at its real position in the brain, glowing brighter as it fires, in sync with the track.
 4. **`brain_map.py`** is a simple flat backup drawing (not the real 3D positions), kept on hand in case the real scene ever isn't wanted or available. It isn't part of the running app.
 
