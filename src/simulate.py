@@ -291,13 +291,14 @@ def run_simulation(
     band_masks = {b: (band_group == b).astype(np.float64) for b in range(N_BANDS)}
 
     # pitch-class-specific component -- driven purely by chroma (which notes are
-    # sounding), independent of the band-energy/onset terms above. Kept as a
-    # separate additive term rather than blended into drive_by_band, so pitch
-    # response is a genuinely independent signal, not a reweighting of the same
-    # one. drive_scale halved here: this is a second full drive term layered on
-    # top of the band term for the same seed neurons, so summing both at full
-    # weight would roughly double total drive magnitude.
-    drive_by_pitch = {p: 0.5 * drive_scale * features["chroma"][p] for p in range(N_PITCHES)}
+    # sounding). Applied as a MULTIPLIER on the band drive above, not a second
+    # additive term: stacking two independent full-strength drive signals on the
+    # same seed neurons just raises the floor everywhere ("brighter" overall,
+    # less differentiated) rather than picking out which neurons respond harder.
+    # A multiplicative factor in [0.7, 1.3] keeps total drive magnitude close to
+    # the pre-pitch baseline while still letting active pitch classes visibly
+    # reshape which neurons pop.
+    pitch_factor_by_pitch = {p: 0.7 + 0.6 * features["chroma"][p] for p in range(N_PITCHES)}
     pitch_masks = {p: (pitch_group == p).astype(np.float64) for p in range(N_PITCHES)}
 
     V = np.full(n, V_REST, dtype=np.float64)
@@ -333,7 +334,8 @@ def run_simulation(
 
     for t in range(n_frames):
         drive_vec = sum(drive_by_band[b][t] * band_masks[b] for b in range(N_BANDS))
-        drive_vec = drive_vec + sum(drive_by_pitch[p][t] * pitch_masks[p] for p in range(N_PITCHES))
+        pitch_factor_vec = sum(pitch_factor_by_pitch[p][t] * pitch_masks[p] for p in range(N_PITCHES))
+        drive_vec = drive_vec * pitch_factor_vec
 
         V_sum = np.zeros(n, dtype=np.float64)
         for _ in range(n_substeps):
