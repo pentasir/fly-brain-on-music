@@ -84,7 +84,7 @@ import numpy as np
 import pandas as pd
 import scipy.sparse as sp
 
-from audio_features import N_BANDS
+from audio_features import N_BANDS, N_PITCHES
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data" / "connectome"
 
@@ -173,6 +173,17 @@ def _build_arrays():
         if attrs.get("is_seed"):
             band_group[index[node]] = node % N_BANDS
 
+    # A second, independent partition of the SAME seed population by pitch class
+    # (12-way, see audio_features.py's chroma feature) -- deliberately a separate
+    # grouping from band_group (not a subdivision of it), so pitch-class response
+    # and frequency-band response are two independent lenses on the same neurons,
+    # not competing for a limited pool. Same "deterministic, not real tuning"
+    # caveat as band_group applies here.
+    pitch_group = np.full(n, -1, dtype=np.int8)
+    for node, attrs in graph.nodes(data=True):
+        if attrs.get("is_seed"):
+            pitch_group[index[node]] = node % N_PITCHES
+
     nt_types = _load_nt_types()
     nt_sign = np.array([NT_SIGN.get(nt_types.get(node), NT_SIGN_DEFAULT) for node in nodes])
 
@@ -214,7 +225,8 @@ def _build_arrays():
     regions = np.array([graph.nodes[n].get("region") or "unknown" for n in nodes], dtype=object)
 
     _cache["arrays"] = dict(
-        A=A, seed_mask=seed_mask, dist=dist, labels=labels, root_ids=root_ids, regions=regions, band_group=band_group
+        A=A, seed_mask=seed_mask, dist=dist, labels=labels, root_ids=root_ids, regions=regions,
+        band_group=band_group, pitch_group=pitch_group,
     )
     return _cache["arrays"]
 
@@ -250,6 +262,7 @@ def run_simulation(
     dist = arrays["dist"]
     regions = arrays["regions"]
     band_group = arrays["band_group"]
+    pitch_group = arrays["pitch_group"]
     n = len(seed_mask)
     n_frames = len(features["times"])
 
@@ -277,6 +290,16 @@ def run_simulation(
     }
     band_masks = {b: (band_group == b).astype(np.float64) for b in range(N_BANDS)}
 
+    # pitch-class-specific component -- driven purely by chroma (which notes are
+    # sounding), independent of the band-energy/onset terms above. Kept as a
+    # separate additive term rather than blended into drive_by_band, so pitch
+    # response is a genuinely independent signal, not a reweighting of the same
+    # one. drive_scale halved here: this is a second full drive term layered on
+    # top of the band term for the same seed neurons, so summing both at full
+    # weight would roughly double total drive magnitude.
+    drive_by_pitch = {p: 0.5 * drive_scale * features["chroma"][p] for p in range(N_PITCHES)}
+    pitch_masks = {p: (pitch_group == p).astype(np.float64) for p in range(N_PITCHES)}
+
     V = np.full(n, V_REST, dtype=np.float64)
     refrac = np.zeros(n, dtype=np.float64)  # ms remaining in refractory period
     spike_prev = np.zeros(n, dtype=np.float64)  # binary spike train from the previous substep
@@ -291,10 +314,12 @@ def run_simulation(
 
     seed_trace, hop1_trace, hop2_trace, total_trace = [], [], [], []
     band_traces = [[] for _ in range(N_BANDS)]
+    pitch_traces = [[] for _ in range(N_PITCHES)]
     region_series = np.zeros((n_frames, n_regions), dtype=np.float64)
     node_snapshots = []  # list of (time, state.copy()) if node_snapshot_stride > 0
 
     band_idx = [band_group == b for b in range(N_BANDS)]
+    pitch_idx = [pitch_group == p for p in range(N_PITCHES)]
 
     times = features["times"]
     frame_duration_s = (times[1] - times[0]) if n_frames > 1 else max(times[-1], 0.1)
@@ -308,6 +333,7 @@ def run_simulation(
 
     for t in range(n_frames):
         drive_vec = sum(drive_by_band[b][t] * band_masks[b] for b in range(N_BANDS))
+        drive_vec = drive_vec + sum(drive_by_pitch[p][t] * pitch_masks[p] for p in range(N_PITCHES))
 
         V_sum = np.zeros(n, dtype=np.float64)
         for _ in range(n_substeps):
@@ -332,6 +358,8 @@ def run_simulation(
         total_trace.append(float(state.mean()))
         for b in range(N_BANDS):
             band_traces[b].append(float(state[band_idx[b]].mean()) if band_idx[b].any() else 0.0)
+        for p in range(N_PITCHES):
+            pitch_traces[p].append(float(state[pitch_idx[p]].mean()) if pitch_idx[p].any() else 0.0)
 
         sums = np.bincount(region_inverse, weights=state, minlength=n_regions)
         region_series[t] = sums / np.maximum(region_counts, 1)
@@ -368,6 +396,7 @@ def run_simulation(
         hop2plus=hop2_trace,
         total=total_trace,
         bands=band_traces,  # list of N_BANDS traces, low frequency -> high
+        pitches=pitch_traces,  # list of N_PITCHES traces, C, C#, D, ... B
         top_neurons=top_neurons,
         region_series=region_result,
         region_final=region_final,

@@ -10,6 +10,15 @@ import librosa
 # front end, not a claim about the fly's real per-band frequency boundaries.
 N_BANDS = 8
 
+# The 12 pitch classes (C, C#, D, ... B), independent of octave -- a second,
+# separate seed grouping (pitch_group, see simulate.py) driven by which notes
+# are sounding, not how loud or how sudden. Captures melody/chord content that
+# a pure energy-per-band split can't (a C major chord and an F major chord can
+# have identical loudness and spectral-band energy while differing entirely in
+# which pitch classes are active).
+N_PITCHES = 12
+PITCH_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+
 
 def extract_features(y: np.ndarray, sr: int, n_frames: int = 150) -> dict:
     duration = len(y) / sr
@@ -28,6 +37,11 @@ def extract_features(y: np.ndarray, sr: int, n_frames: int = 150) -> dict:
 
     percussive_rms = librosa.feature.rms(y=y_percussive, hop_length=hop_length)[0]
     harmonic_rms = librosa.feature.rms(y=y_harmonic, hop_length=hop_length)[0]
+
+    # Chroma (pitch-class energy) computed on the harmonic component only --
+    # percussive transients have no clear pitch and would just add noise to
+    # which pitch classes appear "active."
+    chroma = librosa.feature.chroma_cqt(y=y_harmonic, sr=sr, hop_length=hop_length)
 
     # Mel spectrogram: frequency bins spaced to approximate cochlear tuning
     # (denser at low frequencies), then log-compressed (power_to_db) so loud
@@ -89,6 +103,14 @@ def extract_features(y: np.ndarray, sr: int, n_frames: int = 150) -> dict:
     total_r = perc_r + harm_r
     percussive_ratio = np.divide(perc_r, total_r, out=np.full_like(perc_r, 0.5), where=total_r > 0)
 
+    # Same joint-normalization treatment as bands/onsets, for the same reason:
+    # independent per-pitch-class normalization would erase which pitch classes
+    # genuinely dominate a track vs. barely appear.
+    chroma_r = [resample(chroma[p]) for p in range(N_PITCHES)]
+    chroma_lo = min(c.min() for c in chroma_r)
+    chroma_hi = max(c.max() for c in chroma_r)
+    chroma_norm = [normalize(c, chroma_lo, chroma_hi) for c in chroma_r]
+
     features = {
         "times": np.linspace(0, duration, n_frames),
         "rms": normalize(resample(rms)),
@@ -96,6 +118,7 @@ def extract_features(y: np.ndarray, sr: int, n_frames: int = 150) -> dict:
         "bands": bands_norm,  # list of N_BANDS arrays, low frequency -> high
         "band_onsets": onsets_norm,  # list of N_BANDS arrays, per-band transient strength
         "percussive_ratio": percussive_ratio,  # 0..1, how percussive- vs. harmonic-dominated each frame is
+        "chroma": chroma_norm,  # list of N_PITCHES arrays, pitch-class energy (C, C#, D, ... B)
         "tempo": float(tempo) if np.isscalar(tempo) else float(tempo[0]),
     }
     return features

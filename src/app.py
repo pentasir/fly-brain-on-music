@@ -13,7 +13,7 @@ import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 
-from audio_features import extract_features
+from audio_features import PITCH_NAMES, extract_features
 from em_texture import EM_LOADER_VIDEO_B64
 from simulate import run_simulation
 from web_scene import build_scene_html
@@ -65,11 +65,12 @@ ABOUT_MD = """
 
 **Speculative, our own modeling layer, not from literature:**
 - **Audio → neural drive**: no dataset of real fly neural response to music exists anywhere, so this
-  mapping (loudness/onset/frequency-band energy → synaptic current) is an artistic choice, not a
-  validated model.
-- **"Tonotopic" band split**: FlyWire's public data has no per-neuron frequency-tuning annotation, so
-  the mel-spaced neuron grouping is a deterministic but arbitrary partition (by neuron ID), not a
-  real tonotopic map.
+  mapping (loudness/onset/frequency-band energy/pitch-class energy → synaptic current) is an artistic
+  choice, not a validated model.
+- **"Tonotopic" band split and pitch-class split**: FlyWire's public data has no per-neuron
+  frequency-tuning or pitch-tuning annotation, so both the mel-spaced neuron grouping and the 12-way
+  pitch-class neuron grouping are deterministic but arbitrary partitions (by neuron ID), not real
+  tonotopic or pitch maps.
 
 **Bottom line**: this is a real wiring diagram with a real spiking-neuron model running on top,
 driven by an artistic (not scientifically validated) audio-input layer. Treat it as connectome-
@@ -325,6 +326,18 @@ if "result" in st.session_state:
             | {f"band {i + 1} neurons": trace for i, trace in enumerate(result["bands"])}
         ).set_index("time_s")
         st.line_chart(band_df)
+
+        st.subheader("Response by pitch class")
+        st.caption(
+            "A second, independent seed grouping (12-way, by pitch class C through B) driven by "
+            "chroma -- which notes are sounding, not how loud. A chord change can show up here "
+            "even when overall loudness and frequency-band energy stay flat."
+        )
+        pitch_df = pd.DataFrame(
+            {"time_s": result["times"]}
+            | {f"{name} neurons": trace for name, trace in zip(PITCH_NAMES, result["pitches"])}
+        ).set_index("time_s")
+        st.line_chart(pitch_df)
 
         st.subheader("Most activated neurons at end of track")
         st.dataframe(pd.DataFrame(result["top_neurons"]), use_container_width=True)
