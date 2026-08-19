@@ -3,6 +3,13 @@ number of frames so any track (any length) drives the simulation the same way.""
 import numpy as np
 import librosa
 
+# Number of mel-spaced frequency bands fed to the simulation as separate seed
+# groups (see simulate.py's band_group = node % N_BANDS). Mel spacing puts more
+# bands at low frequencies and fewer at high, the same way cochlear (and
+# Johnston's Organ) frequency tuning is denser at the low end -- a cochlear-style
+# front end, not a claim about the fly's real per-band frequency boundaries.
+N_BANDS = 8
+
 
 def extract_features(y: np.ndarray, sr: int, n_frames: int = 150) -> dict:
     duration = len(y) / sr
@@ -12,11 +19,17 @@ def extract_features(y: np.ndarray, sr: int, n_frames: int = 150) -> dict:
     onset_env = librosa.onset.onset_strength(y=y, sr=sr, hop_length=hop_length)
     tempo, _ = librosa.beat.beat_track(y=y, sr=sr, hop_length=hop_length)
 
-    S = np.abs(librosa.stft(y, hop_length=hop_length))
-    freqs = librosa.fft_frequencies(sr=sr)
-    bass = S[freqs < 250].mean(axis=0)
-    mid = S[(freqs >= 250) & (freqs < 4000)].mean(axis=0)
-    treble = S[freqs >= 4000].mean(axis=0)
+    # Mel spectrogram: frequency bins spaced to approximate cochlear tuning
+    # (denser at low frequencies), then log-compressed (power_to_db) so loud
+    # transients are compressed and quiet detail is expanded -- closer to real
+    # auditory dynamic-range handling than raw linear STFT magnitude.
+    mel = librosa.feature.melspectrogram(y=y, sr=sr, hop_length=hop_length, n_mels=N_BANDS * 4)
+    mel_db = librosa.power_to_db(mel, ref=np.max)
+
+    # Group the N_BANDS*4 mel bins into N_BANDS coarser bands (mel bins are
+    # already frequency-ordered, so this is a contiguous split, not a resample).
+    band_edges = np.linspace(0, mel_db.shape[0], N_BANDS + 1).astype(int)
+    bands = [mel_db[band_edges[i]:band_edges[i + 1]].mean(axis=0) for i in range(N_BANDS)]
 
     def resample(arr):
         x_old = np.linspace(0, 1, len(arr))
@@ -29,23 +42,22 @@ def extract_features(y: np.ndarray, sr: int, n_frames: int = 150) -> dict:
         span = hi - lo
         return np.clip((arr - lo) / span, 0, 1) if span > 0 else np.zeros_like(arr)
 
-    bass_r, mid_r, treble_r = resample(bass), resample(mid), resample(treble)
-    # Normalize bass/mid/treble jointly (shared min/max across all three), not
+    bands_r = [resample(b) for b in bands]
+    # Normalize all bands jointly (shared min/max across all of them), not
     # independently -- independent normalization stretches each band to its own
     # [0,1] range, which erases genuine magnitude differences between bands (real
-    # music has far more bass energy than treble; independently normalizing hides
-    # that and makes all three bands look similarly-shaped regardless of actual
-    # relative loudness -- this was why bass/mid/treble activation barely diverged).
-    shared_lo = min(bass_r.min(), mid_r.min(), treble_r.min())
-    shared_hi = max(bass_r.max(), mid_r.max(), treble_r.max())
+    # music has far more low-frequency energy than high; independently normalizing
+    # hides that and makes all bands look similarly-shaped regardless of actual
+    # relative loudness -- this was why band activation barely diverged before).
+    shared_lo = min(b.min() for b in bands_r)
+    shared_hi = max(b.max() for b in bands_r)
+    bands_norm = [normalize(b, shared_lo, shared_hi) for b in bands_r]
 
     features = {
         "times": np.linspace(0, duration, n_frames),
         "rms": normalize(resample(rms)),
         "onset": normalize(resample(onset_env)),
-        "bass": normalize(bass_r, shared_lo, shared_hi),
-        "mid": normalize(mid_r, shared_lo, shared_hi),
-        "treble": normalize(treble_r, shared_lo, shared_hi),
+        "bands": bands_norm,  # list of N_BANDS arrays, low frequency -> high
         "tempo": float(tempo) if np.isscalar(tempo) else float(tempo[0]),
     }
     return features

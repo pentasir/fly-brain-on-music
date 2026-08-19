@@ -68,7 +68,7 @@ ABOUT_MD = """
   mapping (loudness/onset/frequency-band energy → synaptic current) is an artistic choice, not a
   validated model.
 - **"Tonotopic" band split**: FlyWire's public data has no per-neuron frequency-tuning annotation, so
-  the bass/mid/treble neuron grouping is a deterministic but arbitrary partition (by neuron ID), not a
+  the mel-spaced neuron grouping is a deterministic but arbitrary partition (by neuron ID), not a
   real tonotopic map.
 
 **Bottom line**: this is a real wiring diagram with a real spiking-neuron model running on top,
@@ -314,18 +314,15 @@ if "result" in st.session_state:
 
         st.subheader("Response by frequency band")
         st.caption(
-            "Seed neurons are split into 3 groups, each driven mainly by bass/mid/treble energy "
-            "(a modeling choice -- FlyWire's data has no real per-neuron frequency tuning "
-            "annotation). Divergence between these lines means the sim is responding to "
-            "spectral content, not just loudness."
+            f"Seed neurons are split into {len(result['bands'])} mel-spaced groups (low -> high "
+            "frequency), each driven mainly by its own band's energy (a modeling choice -- "
+            "FlyWire's data has no real per-neuron frequency tuning annotation). Divergence "
+            "between these lines means the sim is responding to spectral content, not just "
+            "loudness."
         )
         band_df = pd.DataFrame(
-            {
-                "time_s": result["times"],
-                "bass-group neurons": result["bass"],
-                "mid-group neurons": result["mid"],
-                "treble-group neurons": result["treble"],
-            }
+            {"time_s": result["times"]}
+            | {f"band {i + 1} neurons": trace for i, trace in enumerate(result["bands"])}
         ).set_index("time_s")
         st.line_chart(band_df)
 

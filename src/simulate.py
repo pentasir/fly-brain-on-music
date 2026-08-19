@@ -67,12 +67,13 @@ otherwise -- see VERIFIED_NAME_TO_CODE / _load_nt_types:
         a confident sign.
     Unresolved (no prediction) -> same small neutral magnitude.
 
-`drive_vec` is NOT a single scalar broadcast to every seed neuron -- the
-seed population is split three ways (band_group, see _build_arrays) and each
-group is driven mainly by its own frequency band (bass/mid/treble), plus a
-shared rhythm/loudness term everyone feels. This is a deterministic,
-documented modeling choice, not a claim that FlyWire's public data has real
-per-neuron frequency-tuning annotations (it doesn't).
+`drive_vec` is NOT a single scalar broadcast to every seed neuron -- the seed
+population is split N_BANDS ways (band_group, see _build_arrays) and each
+group is driven mainly by its own mel-spaced frequency band (low -> high,
+see audio_features.py), plus a shared rhythm/loudness term everyone feels.
+This is a deterministic, documented modeling choice, not a claim that
+FlyWire's public data has real per-neuron frequency-tuning annotations (it
+doesn't).
 """
 import gzip
 import pickle
@@ -82,6 +83,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import scipy.sparse as sp
+
+from audio_features import N_BANDS
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data" / "connectome"
 
@@ -162,13 +165,13 @@ def _build_arrays():
 
     # Tonotopic-style split: FlyWire's public export has no per-neuron frequency
     # tuning annotation, so this is NOT a real tonotopic map -- it's a deterministic
-    # partition of the seed population into three groups (by root_id, stable across
-    # runs), each driven primarily by a different frequency band (bass/mid/treble).
-    # Modeling choice, not a claim about real per-neuron tuning.
+    # partition of the seed population into N_BANDS groups (by root_id, stable
+    # across runs), each driven primarily by a different mel-spaced frequency band
+    # (low -> high). Modeling choice, not a claim about real per-neuron tuning.
     band_group = np.full(n, -1, dtype=np.int8)  # -1 = not a seed neuron
     for node, attrs in graph.nodes(data=True):
         if attrs.get("is_seed"):
-            band_group[index[node]] = node % 3
+            band_group[index[node]] = node % N_BANDS
 
     nt_types = _load_nt_types()
     nt_sign = np.array([NT_SIGN.get(nt_types.get(node), NT_SIGN_DEFAULT) for node in nodes])
@@ -251,16 +254,12 @@ def run_simulation(
     n_frames = len(features["times"])
 
     # shared rhythm/loudness component (all bands feel the beat), plus a
-    # band-specific component (bass-group neurons respond mainly to bass energy,
-    # mid/treble likewise) -- this is what makes the sim differentiate spectral
-    # content, not just overall loudness.
+    # band-specific component (each band-group's neurons respond mainly to their
+    # own mel-spaced frequency band) -- this is what makes the sim differentiate
+    # spectral content, not just overall loudness.
     shared = 0.15 * features["rms"] + 0.1 * features["onset"]
-    drive_by_band = {
-        0: drive_scale * (shared + 0.75 * features["bass"]),
-        1: drive_scale * (shared + 0.75 * features["mid"]),
-        2: drive_scale * (shared + 0.75 * features["treble"]),
-    }
-    band_masks = {b: (band_group == b).astype(np.float64) for b in (0, 1, 2)}
+    drive_by_band = {b: drive_scale * (shared + 0.75 * features["bands"][b]) for b in range(N_BANDS)}
+    band_masks = {b: (band_group == b).astype(np.float64) for b in range(N_BANDS)}
 
     V = np.full(n, V_REST, dtype=np.float64)
     refrac = np.zeros(n, dtype=np.float64)  # ms remaining in refractory period
@@ -275,13 +274,11 @@ def run_simulation(
     n_regions = len(region_names)
 
     seed_trace, hop1_trace, hop2_trace, total_trace = [], [], [], []
-    bass_trace, mid_trace, treble_trace = [], [], []
+    band_traces = [[] for _ in range(N_BANDS)]
     region_series = np.zeros((n_frames, n_regions), dtype=np.float64)
     node_snapshots = []  # list of (time, state.copy()) if node_snapshot_stride > 0
 
-    bass_idx = band_group == 0
-    mid_idx = band_group == 1
-    treble_idx = band_group == 2
+    band_idx = [band_group == b for b in range(N_BANDS)]
 
     times = features["times"]
     frame_duration_s = (times[1] - times[0]) if n_frames > 1 else max(times[-1], 0.1)
@@ -294,9 +291,7 @@ def run_simulation(
     dt_ms = frame_duration_ms / n_substeps
 
     for t in range(n_frames):
-        drive_vec = (
-            drive_by_band[0][t] * band_masks[0] + drive_by_band[1][t] * band_masks[1] + drive_by_band[2][t] * band_masks[2]
-        )
+        drive_vec = sum(drive_by_band[b][t] * band_masks[b] for b in range(N_BANDS))
 
         V_sum = np.zeros(n, dtype=np.float64)
         for _ in range(n_substeps):
@@ -319,9 +314,8 @@ def run_simulation(
         hop1_trace.append(float(state[hop1_idx].mean()) if hop1_idx.any() else 0.0)
         hop2_trace.append(float(state[hop2plus_idx].mean()) if hop2plus_idx.any() else 0.0)
         total_trace.append(float(state.mean()))
-        bass_trace.append(float(state[bass_idx].mean()) if bass_idx.any() else 0.0)
-        mid_trace.append(float(state[mid_idx].mean()) if mid_idx.any() else 0.0)
-        treble_trace.append(float(state[treble_idx].mean()) if treble_idx.any() else 0.0)
+        for b in range(N_BANDS):
+            band_traces[b].append(float(state[band_idx[b]].mean()) if band_idx[b].any() else 0.0)
 
         sums = np.bincount(region_inverse, weights=state, minlength=n_regions)
         region_series[t] = sums / np.maximum(region_counts, 1)
@@ -357,9 +351,7 @@ def run_simulation(
         hop1=hop1_trace,
         hop2plus=hop2_trace,
         total=total_trace,
-        bass=bass_trace,
-        mid=mid_trace,
-        treble=treble_trace,
+        bands=band_traces,  # list of N_BANDS traces, low frequency -> high
         top_neurons=top_neurons,
         region_series=region_result,
         region_final=region_final,
