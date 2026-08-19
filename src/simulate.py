@@ -255,10 +255,16 @@ def run_simulation(
 
     # shared rhythm/loudness component (all bands feel the beat), plus a
     # band-specific component (each band-group's neurons respond mainly to their
-    # own mel-spaced frequency band) -- this is what makes the sim differentiate
+    # own mel-spaced frequency band, and get an extra kick from transients
+    # detected specifically within that band, e.g. a kick drum vs. a cymbal hit
+    # firing their respective bands independently rather than both waiting on
+    # the whole-mix onset envelope) -- this is what makes the sim differentiate
     # spectral content, not just overall loudness.
     shared = 0.15 * features["rms"] + 0.1 * features["onset"]
-    drive_by_band = {b: drive_scale * (shared + 0.75 * features["bands"][b]) for b in range(N_BANDS)}
+    drive_by_band = {
+        b: drive_scale * (shared + 0.75 * features["bands"][b] + 0.4 * features["band_onsets"][b])
+        for b in range(N_BANDS)
+    }
     band_masks = {b: (band_group == b).astype(np.float64) for b in range(N_BANDS)}
 
     V = np.full(n, V_REST, dtype=np.float64)

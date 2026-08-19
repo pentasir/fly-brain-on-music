@@ -29,7 +29,16 @@ def extract_features(y: np.ndarray, sr: int, n_frames: int = 150) -> dict:
     # Group the N_BANDS*4 mel bins into N_BANDS coarser bands (mel bins are
     # already frequency-ordered, so this is a contiguous split, not a resample).
     band_edges = np.linspace(0, mel_db.shape[0], N_BANDS + 1).astype(int)
-    bands = [mel_db[band_edges[i]:band_edges[i + 1]].mean(axis=0) for i in range(N_BANDS)]
+    band_slices = [mel_db[band_edges[i]:band_edges[i + 1]] for i in range(N_BANDS)]
+    bands = [s.mean(axis=0) for s in band_slices]
+
+    # Per-band onset: a transient (drum hit, pluck) in one frequency range
+    # shouldn't have to wait for the whole-mix onset envelope below to notice it
+    # -- e.g. a kick drum (low band) and a cymbal hit (high band) can now trigger
+    # independently instead of both riding the same global onset bump. Reuses
+    # the already-log-compressed mel_db slices (onset_strength's S expects a
+    # log-power spectrogram) rather than recomputing a separate STFT per band.
+    band_onsets = [librosa.onset.onset_strength(S=s, sr=sr, hop_length=hop_length) for s in band_slices]
 
     def resample(arr):
         x_old = np.linspace(0, 1, len(arr))
@@ -53,11 +62,20 @@ def extract_features(y: np.ndarray, sr: int, n_frames: int = 150) -> dict:
     shared_hi = max(b.max() for b in bands_r)
     bands_norm = [normalize(b, shared_lo, shared_hi) for b in bands_r]
 
+    # Per-band onset strengths get the same joint-normalization treatment as the
+    # bands themselves, for the same reason: independent per-band normalization
+    # would erase real differences in how "spiky" each band's transients are.
+    onsets_r = [resample(o) for o in band_onsets]
+    onset_lo = min(o.min() for o in onsets_r)
+    onset_hi = max(o.max() for o in onsets_r)
+    onsets_norm = [normalize(o, onset_lo, onset_hi) for o in onsets_r]
+
     features = {
         "times": np.linspace(0, duration, n_frames),
         "rms": normalize(resample(rms)),
         "onset": normalize(resample(onset_env)),
         "bands": bands_norm,  # list of N_BANDS arrays, low frequency -> high
+        "band_onsets": onsets_norm,  # list of N_BANDS arrays, per-band transient strength
         "tempo": float(tempo) if np.isscalar(tempo) else float(tempo[0]),
     }
     return features
