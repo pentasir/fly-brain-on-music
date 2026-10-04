@@ -504,3 +504,20 @@ Takeaways: (a) the old network's downstream spiking came from many olfactory neu
 **Verified:** pipeline run on Chopin and pink noise (no NaN; ~550 neurons reach ≥2 mV at their 95th percentile, the rest show as wiring), then the live app via Playwright + CDP screenshot: two bright clusters at JO/AMMC on each side, faint wiring dots through the brain and nerve cord.
 
 **Still to do:** README screenshots/GIF predate this change and should be re-recorded. A more faithful simulation (finer dt, all inputs rather than only ≥8-synapse edges, possibly on shorter clips) is the open path to genuine propagation further out.
+
+---
+
+## 2026-10-05 (cont.): Visual pass on the honest build
+
+User feedback after the hearing-only rebuild: "the model is visually less impressive now." True: with ~500 hearing seeds instead of ~2,800 converging smell neurons, the real activity is two small clusters, and Chopin is quiet. Agreed rule for the fix: every new visual element must show something real, and the legend says what. User picked four of six proposed options (bloom, region colors, spike flashes, signal routes; skipped default-camera and demo-track changes).
+
+1. **Bloom tuned, not added.** `UnrealBloomPass` already existed (1.1 / 0.5 / 0.15). Now 1.5 strength, 0.6 radius, 0.2 threshold, so activity, flashes and pulses bloom while the dim wiring colors stay below threshold.
+2. **Wiring colored by real region.** `REGION_GROUPS` in `web_scene.py` maps BANC's `Top in/out region` (from `auditory_neurons.csv`) into 7 families: motor neurons (by `cell_class`, checked first), hearing centres (AMMC/SAD/WED/AVLP/PVLP/AMNP), GNG, optic lobes, nerve cord leg segments (T1/T2/T3/ABD neuromeres), other nerve cord (TCT tracts etc.), other central brain. Counts on the current graph: 465 / 2,829 / 726 / 841 / 3,172 / 1,234 / 1,504. Replaces the single `WIRING_TINT`.
+3. **Spike flashes.** `simulate.py` now returns `spike_frames`: per frame, the indices of neurons that spiked and their rate in Hz over that frame (sparse, so cheap). The scene draws flashes as Poisson events at that rate on each animation tick. Exact spike times aren't stored on purpose: audio drive is held constant within a frame, so sub-frame timing carries no musical information, and full spike trains would bloat the payload. Disclosed in the legend and About panel.
+4. **Signal routes.** `_route_edges` picks real graph edges: all 518 seed -> hop1, the 1,200 strongest hop1 -> hop2 by synapse count, and for every leg/wing motor neuron the strongest path back to the ear (at each step the predecessor one hop closer with the most synapses). 2,137 edges in all, drawn as additive `LineSegments` with a shader pulse that runs along an edge when its source flashes.
+
+**Tuning found from screenshots, not guessed.** First render was a white-out: ~2,000 additive lines bundle through the neck, their faint base colors summed to white and bloom amplified it. Dropped the line base color to 7% and pulse brightness, then raised pulses again (wider, 1.6x, 0.7 s) after measuring orange-pixel counts across 110 captured frames showed pulses were nearly invisible. Honest outcome: pulses mostly appear on short ear -> first relay links near the clusters, with occasional longer ones, because that's how far the simulated spikes go. Did not add any pulses beyond real spikes.
+
+**Legend** made collapsible (`<details>`): shells and bright points always visible; flashes, lines and the region color key under "flashes, lines and region colors."
+
+**Verified** in the live local app via Playwright + CDP captures (scene colors only update while audio plays, so all captures were taken mid-playback at ~205 s, the loudest stretch of the Chopin demo). README stills and `scene-demo.gif` recaptured with the new look.

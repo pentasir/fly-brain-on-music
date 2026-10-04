@@ -39,7 +39,7 @@ The one part that is not science is the bridge from sound to synapse. No dataset
 </table>
 
 <p align="center">
-  <img src="screenshots/scene-demo.gif" width="90%" alt="Animated: the hearing pathway responding to the Chopin demo as the camera orbits">
+  <img src="screenshots/scene-demo.gif" width="90%" alt="Animated: ear clusters flashing with simulated spikes, real connections fanning out toward the nerve cord, as the camera orbits">
 </p>
 
 ## What's real vs. speculative
@@ -90,7 +90,7 @@ Requires your own FlyWire/CAVE account. See [codex.flywire.ai](https://codex.fly
 
 1. **`audio_features.py`** listens to the track: how loud, how fast, how sudden each moment is, its energy across 8 mel-spaced frequency bands (log-compressed, cochlear-style spacing, low to high) with per-band transient detection, its energy across 12 pitch classes (chroma), and the percussive/harmonic balance of each moment. Frames can be spaced at a fixed rate or (optionally) locked to the track's detected beat.
 2. **`simulate.py`** feeds that into the real wiring diagram. About 10,800 neurons pass the signal to each other, hop by hop, starting from the sound-sensitive Johnston's Organ neurons (subgroups A and B) and spreading outward. In practice most of the spiking stays in the ear neurons and their first relays; further out the model shows small sub-threshold voltage changes, and the [2026-10-05 notes](#2026-10-05-hearing-only-rebuild) below explain why. Seed neurons are split two independent ways -- by frequency band and by pitch class -- so different populations respond to different pitches and different notes. The module's own comments walk through the model in more depth for anyone curious.
-3. **`web_scene.py`** and **`brain_map_3d.py`** draw the result: each neuron placed at its real position in the brain, glowing brighter as it fires, in sync with the track. Brightness is normalized per neuron against its own range over the track (with a 2 mV minimum, so tiny wiggles stay dark), and every neuron on the pathway keeps a faint base tint so the real wiring stays visible even where nothing is firing.
+3. **`web_scene.py`** and **`brain_map_3d.py`** draw the result: each neuron placed at its real position in the brain, glowing brighter as it fires, in sync with the track. Brightness is normalized per neuron against its own range over the track (with a 2 mV minimum, so tiny wiggles stay dark), and every neuron on the pathway keeps a faint base color by its real BANC region (hearing centres, nerve cord, motor neurons and so on) so the wiring stays visible even where nothing is firing. Spikes show as flashes at each neuron's simulated firing rate, and real connections are drawn as faint lines: ear to first relay, the strongest next links, and the strongest real path from the ear to every leg and wing motor neuron. A pulse runs along a line when its source neuron spikes.
 4. **`brain_map.py`** is a simple flat backup drawing (not the real 3D positions), kept on hand in case the real scene ever isn't wanted or available. It isn't part of the running app.
 
 ## Build story
@@ -117,6 +117,7 @@ What changed:
 - **Connection threshold lowered from 12 to 8 synapses**, since the smaller seed set leaves room: 10,771 neurons and 30,380 connections (was 22,878 and 75,947). Fresh 3D positions were pulled from CAVE for every neuron.
 - **Spike counts checked, not just voltages.** On the Chopin demo at the old drive strength, ear neurons fired under 1 Hz on average and nothing downstream spiked at all. In the old smell-heavy network, the downstream activity came from many olfactory neurons converging on each relay. Drive strength was raised from 12 to 30 so the ear neurons fire at tens of Hz. Even so, spiking mostly stops after the first relay in this model.
 - **Display made honest about that.** Each neuron now needs at least 2 mV of depolarization to reach full brightness (before, a 0.01 mV wiggle could be stretched to full glow), and every pathway neuron keeps a faint base tint so the real route, including into the nerve cord, is visible as wiring rather than implied activity.
+- **Visual pass (same day).** The honest version looked flat, so four real-data visual layers were added: stronger bloom on activity only, wiring colored by BANC region, spike flashes at each neuron's simulated firing rate, and signal routes (real connections, with pulses when the source spikes). The routes reach every leg and wing motor neuron as structure; pulses mostly stay near the ears, because that's where the simulated spikes are.
 - **Citation fix.** The Shiu et al. 2024 model was built on FlyWire's brain-only map of a different fly, not on BANC. The docs previously said "this same connectome". The BANC paper itself (Bates et al. 2026, *Nature*) is now cited too.
 
 The unedited log lives in [`BUILD_LOG.md`](BUILD_LOG.md) if any of that is worth the full account.
