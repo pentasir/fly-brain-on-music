@@ -1,7 +1,10 @@
 """
 Build the auditory-pathway subgraph from the FlyWire/Codex public data export.
 
-Seed set: neurons on the left/right antennal nerve (Johnston's Organ afferents).
+Seed set: Johnston's Organ subgroup A and B neurons, the sound-sensitive
+afferents (Kamikouchi et al. 2009, Nature). The antennal nerve also carries
+olfactory, hygro- and thermosensory neurons, and JO-C/E mainly sense gravity
+and wind, so the whole nerve is not used as the seed.
 Expands N_HOPS downstream through the real synaptic connectivity, keeping only
 edges with at least MIN_SYN synapses (raw connectome is dense; without a
 threshold a 2-hop expansion from ~4,500 seed neurons balloons toward most of
@@ -20,9 +23,9 @@ import pandas as pd
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data" / "connectome"
 N_HOPS = 3
-MIN_SYN = 12
+MIN_SYN = 8
 
-SEED_NERVES = {"left_antennal_nerve", "right_antennal_nerve"}
+SEED_SUBCLASSES = {"johnstons_organ_A_neuron", "johnstons_organ_B_neuron"}
 
 
 def load_neurons() -> pd.DataFrame:
@@ -63,9 +66,9 @@ def main():
     print("Loading neurons...")
     neurons = load_neurons()
 
-    seed = neurons[neurons["Nerve"].isin(SEED_NERVES)]
+    seed = neurons[neurons["Sub Class"].isin(SEED_SUBCLASSES)]
     seed_ids = set(seed["Root ID"])
-    print(f"Seed set (Johnston's Organ / antennal nerve afferents): {len(seed_ids)} neurons")
+    print(f"Seed set (Johnston's Organ A/B, sound-sensitive): {len(seed_ids)} neurons")
 
     print("Loading connections (this is the big file)...")
     connections = load_connections()
