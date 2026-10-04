@@ -1,26 +1,26 @@
-# Build Story — fly-music
+# Build Story: fly-music
 
 Simulating fly auditory-pathway activation in response to rock/rap/classical music, using real FlyWire connectome data as the underlying graph.
 
 ---
 
-## 2026-08-16 — Kickoff
+## 2026-08-16: Kickoff
 
-**Goal:** use FlyWire's Drosophila connectome to see if we can plausibly "mimic" fly behavior under different music genres. Started from a specific FlyWire neuron page (`local_id=6319f98e85561543a855e5490ec9cb61`), which turned out to be a JS-rendered neuron viewer — not directly scrapable, so we pivoted to using FlyWire's real programmatic tools instead of that one page.
+**Goal:** use FlyWire's Drosophila connectome to see if we can plausibly "mimic" fly behavior under different music genres. Started from a specific FlyWire neuron page (`local_id=6319f98e85561543a855e5490ec9cb61`), which turned out to be a JS-rendered neuron viewer, not directly scrapable, so we pivoted to using FlyWire's real programmatic tools instead of that one page.
 
-**Reality check up front:** FlyWire gives a real, detailed *wiring diagram* (which neurons connect to which, how strongly). It does not give behavior data or any "reaction to music" dataset — there's no ground truth to validate against. So this project is a **connectome-inspired simulation / art piece**, not a validated behavior predictor. Framing that stays explicit throughout.
+**Reality check up front:** FlyWire gives a real, detailed *wiring diagram* (which neurons connect to which, how strongly). It does not give behavior data or any "reaction to music" dataset: there's no ground truth to validate against. So this project is a **connectome-inspired simulation / art piece**, not a validated behavior predictor. Framing that stays explicit throughout.
 
 **Research findings:**
 - Programmatic access is via `caveclient` (CAVE = Connectome Annotation Versioning Engine), `pip install caveclient`.
-- The real auditory pathway exists and is mapped: Johnston's Organ (~400 mechanosensory neurons in the antenna, detects sound/wind/gravity) → AMMC (antennal mechanosensory motor center) → downstream. A 2024 whole-brain connectome paper traced 178 neurons in this pathway — that's our seed set.
+- The real auditory pathway exists and is mapped: Johnston's Organ (~400 mechanosensory neurons in the antenna, detects sound/wind/gravity) → AMMC (antennal mechanosensory motor center) → downstream. A 2024 whole-brain connectome paper traced 178 neurons in this pathway; that's our seed set.
 - Codex (codex.flywire.ai) has a UI for browsing cell-type annotations, including dedicated auditory-cell labels, and a "Download Data" app for CSV exports as an alternative to the API.
 
 **Stack chosen:**
-- `caveclient` — pull real connectome data
-- `networkx` — hold it as a weighted directed graph
-- `librosa` — extract audio features (tempo, amplitude envelope, frequency bands) from tracks
-- `numpy` / `scipy` — leaky-integrate-and-fire style propagation model driven by audio features
-- `matplotlib` — first-pass visualization
+- `caveclient`: pull real connectome data
+- `networkx`: hold it as a weighted directed graph
+- `librosa`: extract audio features (tempo, amplitude envelope, frequency bands) from tracks
+- `numpy` / `scipy`: leaky-integrate-and-fire style propagation model driven by audio features
+- `matplotlib`: first-pass visualization
 
 **Scaffolded project** at `~/fly-music` (later moved, see below):
 ```
@@ -37,127 +37,127 @@ Installed deps into a venv. Wrote `src/check_auth.py` as a minimal "does auth wo
 **Moved project → `/Users/jdon/Desktop/fly`** per request. Rebuilt the venv from scratch at the new path (venvs bake in absolute paths in their activate scripts, so a plain `mv` would've left it broken).
 
 **Auth:**
-- Generated a CAVE token via `client.auth.get_new_token()`, approved in the browser already signed into FlyWire, saved locally with `client.auth.save_token()` (lives in `~/.cloudvolume/secrets/`, outside the project folder — not something that'll end up committed anywhere).
-- Ran `check_auth.py` → token itself is valid (passed authentication), but hit a **403: missing "view" permission for dataset fafb**. Being signed into FlyWire's web UI does not automatically grant CAVE API dataset access — that's a separate grant.
+- Generated a CAVE token via `client.auth.get_new_token()`, approved in the browser already signed into FlyWire, saved locally with `client.auth.save_token()` (lives in `~/.cloudvolume/secrets/`, outside the project folder, not something that'll end up committed anywhere).
+- Ran `check_auth.py` → token itself is valid (passed authentication), but hit a **403: missing "view" permission for dataset fafb**. Being signed into FlyWire's web UI does not automatically grant CAVE API dataset access; that's a separate grant.
 
 **Current blocker:** need FAFB dataset view permission. Two options being tried:
 1. Codex's own "Download Data" app in-browser (may not gate on the same CAVE permission).
-2. Request dataset access directly (form on flywire.ai/data, or email flywire@princeton.edu) — manual step, waiting on user.
+2. Request dataset access directly (form on flywire.ai/data, or email flywire@princeton.edu); manual step, waiting on user.
 
 **Next:** resolve data access, then write `src/fetch_connectome.py` to pull the Johnston's Organ → AMMC → downstream neuron set and their synaptic weights.
 
 ---
 
-## 2026-08-16 (cont.) — Data access resolved via manual download
+## 2026-08-16 (cont.): Data access resolved via manual download
 
 Instead of fighting CAVEclient's separate dataset-permission gate, downloaded the public data exports directly from Codex/FlyWire's Download Data app:
-- `neurons.csv.gz` — 158,262 neurons, female brain + nerve cord dataset (matches Codex's published "BANC v888" release). Columns include Root ID, Class/Sub Class, Nerve, Primary Cell Type, etc.
-- `connections_princeton.csv.gz` — 3,990,040 synaptic connections (`pre_root_id, post_root_id, neuropil, syn_count, nt_type`).
+- `neurons.csv.gz`: 158,262 neurons, female brain + nerve cord dataset (matches Codex's published "BANC v888" release). Columns include Root ID, Class/Sub Class, Nerve, Primary Cell Type, etc.
+- `connections_princeton.csv.gz`: 3,990,040 synaptic connections (`pre_root_id, post_root_id, neuropil, syn_count, nt_type`).
 
 Both moved into `data/connectome/`.
 
 **Confirmed the auditory pathway is present in this data:**
-- 4,502 neurons tagged with `left_antennal_nerve` / `right_antennal_nerve` (afferent, sensory) — this is where Johnston's Organ mechanosensory neurons project through.
-- `AMMC_L` / `AMMC_R` (antennal mechanosensory motor center) appear as neuropil labels in the connections table — the confirmed downstream target of Johnston's Organ.
+- 4,502 neurons tagged with `left_antennal_nerve` / `right_antennal_nerve` (afferent, sensory): this is where Johnston's Organ mechanosensory neurons project through.
+- `AMMC_L` / `AMMC_R` (antennal mechanosensory motor center) appear as neuropil labels in the connections table, the confirmed downstream target of Johnston's Organ.
 
 This gives us everything needed to build the seed neuron set → downstream propagation graph without needing the CAVE API permission at all.
 
 **Publication/citation obligations (must follow if this project is ever shared publicly, not just kept local):**
-- Data is under **CC BY-NC 4.0** — non-commercial, attribution required.
-- Cite Codex: `http://dx.doi.org/10.13140/RG.2.2.35928.67844`, plus the underlying method papers listed in FlyWire's citation table (synapse detection, neurotransmitter prediction, etc. — see [codex.flywire.ai/about_flywire](https://codex.flywire.ai/about_flywire)).
+- Data is under **CC BY-NC 4.0**: non-commercial, attribution required.
+- Cite Codex: `http://dx.doi.org/10.13140/RG.2.2.35928.67844`, plus the underlying method papers listed in FlyWire's citation table (synapse detection, neurotransmitter prediction, etc.; see [codex.flywire.ai/about_flywire](https://codex.flywire.ai/about_flywire)).
 - Credit Princeton (Brain Initiative grants MH117815, MH129268, U24 NS126935) and the FlyWire proofreading community.
-- This applies to **published/released reconstructions**, which the public CSV downloads are — no separate per-lab consent needed since we're using the already-published data release, not unpublished production data. (Unpublished/production-only neurons would trigger the stricter pre-publication consent process in [edit.flywire.ai/principles.html](https://edit.flywire.ai/principles.html); doesn't apply here.)
+- This applies to **published/released reconstructions**, which the public CSV downloads are, no separate per-lab consent needed since we're using the already-published data release, not unpublished production data. (Unpublished/production-only neurons would trigger the stricter pre-publication consent process in [edit.flywire.ai/principles.html](https://edit.flywire.ai/principles.html); doesn't apply here.)
 - Action item: when/if this project is shown publicly, add a citation block to the README before sharing.
 
 **Next:** write `src/fetch_connectome.py` to filter `neurons.csv.gz` for the antennal-nerve seed set, pull their downstream connections (via AMMC and beyond) from `connections_princeton.csv.gz`, and build the `networkx` graph.
 
 ---
 
-## 2026-08-16 (cont.) — First real graph built
+## 2026-08-16 (cont.): First real graph built
 
 Wrote `src/fetch_connectome.py`:
 - Seed set = 4,502 neurons on `left_antennal_nerve` / `right_antennal_nerve` (Johnston's Organ afferents).
-- BFS outward 2 hops through real synaptic connections, keeping only edges with `syn_count >= 5` (the raw connectome is dense — without a threshold, expansion balloons fast).
+- BFS outward 2 hops through real synaptic connections, keeping only edges with `syn_count >= 5` (the raw connectome is dense; without a threshold, expansion balloons fast).
 - Saved as a `networkx` DiGraph (pickled) plus a CSV of node metadata (cell class/type/nerve per neuron).
 
-**Result:** 25,971 neurons, 122,317 edges. Ran in ~3 seconds — the CSVs are small enough that no database or heavier tooling is needed for this project's scale.
+**Result:** 25,971 neurons, 122,317 edges. Ran in ~3 seconds; the CSVs are small enough that no database or heavier tooling is needed for this project's scale.
 
-**Note for later:** 2 hops from the sensory periphery already reaches ~16% of the whole brain (25,971 of ~158,262 total neurons) — broader than ideal for a clean "auditory pathway" story. `N_HOPS` and `MIN_SYN` are exposed as constants at the top of the script so this can be tightened (fewer hops, higher synapse threshold, or filtering to neurons that pass through `AMMC_L`/`AMMC_R` specifically) once we see whether the simulation runs cleanly at this size, or whether it needs to be pruned first.
+**Note for later:** 2 hops from the sensory periphery already reaches ~16% of the whole brain (25,971 of ~158,262 total neurons), broader than ideal for a clean "auditory pathway" story. `N_HOPS` and `MIN_SYN` are exposed as constants at the top of the script so this can be tightened (fewer hops, higher synapse threshold, or filtering to neurons that pass through `AMMC_L`/`AMMC_R` specifically) once we see whether the simulation runs cleanly at this size, or whether it needs to be pruned first.
 
-**Next:** `src/audio_features.py` — extract tempo/amplitude/frequency-band features from a rock/rap/classical track each, to use as the input drive for the graph simulation.
+**Next:** `src/audio_features.py`: extract tempo/amplitude/frequency-band features from a rock/rap/classical track each, to use as the input drive for the graph simulation.
 
 ---
 
-## 2026-08-16 (cont.) — Model choice + genre set finalized
+## 2026-08-16 (cont.): Model choice + genre set finalized
 
-**Model:** staying on Sonnet for the build. The genre/audio work doesn't route through an LLM at all — librosa extracts tempo/amplitude/frequency features numerically from the audio file directly — so model choice barely affects this project's core logic.
+**Model:** staying on Sonnet for the build. The genre/audio work doesn't route through an LLM at all (librosa extracts tempo/amplitude/frequency features numerically from the audio file directly), so model choice barely affects this project's core logic.
 
 **Genre set locked in:** rock, noise, classical (dropped rap). Tracks:
 - Rock: "Comfortably Numb" (Pink Floyd)
 - Classical: a Chopin Nocturne recording
-- Noise: generated synthetically (not a copyrighted recording, so no licensing concern) — used as a "no musical structure" control/baseline to compare the two real tracks against.
+- Noise: generated synthetically (not a copyrighted recording, so no licensing concern), used as a "no musical structure" control/baseline to compare the two real tracks against.
 
-**Licensing note:** Chopin's Nocturnes are public-domain compositions, but the specific *recording* used is still typically copyrighted to the performer/label; Comfortably Numb is fully copyrighted. Personal, local feature-extraction analysis of legally-owned audio is normal fair-use territory — the constraint is not to publish/redistribute the audio files themselves anywhere public (repo, artifact, etc.). Only extracted numeric features and resulting visualizations should ever leave the machine.
+**Licensing note:** Chopin's Nocturnes are public-domain compositions, but the specific *recording* used is still typically copyrighted to the performer/label; Comfortably Numb is fully copyrighted. Personal, local feature-extraction analysis of legally-owned audio is normal fair-use territory; the constraint is not to publish/redistribute the audio files themselves anywhere public (repo, artifact, etc.). Only extracted numeric features and resulting visualizations should ever leave the machine.
 
-Generated `data/audio/noise_white.wav` and `noise_pink.wav` (30s, 44.1kHz) via numpy/scipy — pink noise will be used as the actual "noise" condition since its energy distribution is closer to real music than flat white noise, making it a fairer comparison baseline.
+Generated `data/audio/noise_white.wav` and `noise_pink.wav` (30s, 44.1kHz) via numpy/scipy; pink noise will be used as the actual "noise" condition since its energy distribution is closer to real music than flat white noise, making it a fairer comparison baseline.
 
 **Next:** waiting on the two real audio files to be added to `data/audio/`, then `src/audio_features.py`.
 
 ---
 
-## 2026-08-16 (cont.) — Pivoted to drag-and-drop, no stored audio files
+## 2026-08-16 (cont.): Pivoted to drag-and-drop, no stored audio files
 
 No legal copies of Comfortably Numb / Chopin Nocturne on hand. Rather than source them, pivoted the whole design: instead of a fixed rock/noise/classical dataset baked into the repo, built an **interactive app where you drag in any audio file at runtime**. This is a better solution on two fronts:
-- Sidesteps licensing entirely — audio is read into memory, processed, and discarded; nothing is ever saved to disk or published.
-- More useful as a demo/portfolio piece than three static precomputed results — you can react to any track live.
+- Sidesteps licensing entirely: audio is read into memory, processed, and discarded; nothing is ever saved to disk or published.
+- More useful as a demo/portfolio piece than three static precomputed results; you can react to any track live.
 
 **Built the full pipeline:**
-- `src/audio_features.py` — extracts tempo, RMS envelope, onset strength, and bass/mid/treble band energy from an in-memory audio array via `librosa`, resampled to a fixed 150 frames regardless of track length (so any song drives the sim the same way).
-- `src/simulate.py` — loads the 25,971-node auditory graph, builds a sparse weighted adjacency matrix (edge weight = log-scaled synapse count, normalized 0-1), computes hop-distance from the seed layer via multi-source BFS, then runs a simple recurrent update per audio frame: `state = tanh(decay*state + drive*seed_mask + alpha*incoming)`. Explicitly documented as a speculative graph-propagation toy, not a validated model of real neural dynamics.
-- `src/app.py` — Streamlit app: drag-and-drop file uploader (or pick the white/pink noise control), runs the pipeline, shows a live activation chart (seed / hop1 / hop2+ over time) and a table of the top 15 most-activated neurons with real cell-type labels and root IDs.
+- `src/audio_features.py`: extracts tempo, RMS envelope, onset strength, and bass/mid/treble band energy from an in-memory audio array via `librosa`, resampled to a fixed 150 frames regardless of track length (so any song drives the sim the same way).
+- `src/simulate.py`: loads the 25,971-node auditory graph, builds a sparse weighted adjacency matrix (edge weight = log-scaled synapse count, normalized 0-1), computes hop-distance from the seed layer via multi-source BFS, then runs a simple recurrent update per audio frame: `state = tanh(decay*state + drive*seed_mask + alpha*incoming)`. Explicitly documented as a speculative graph-propagation toy, not a validated model of real neural dynamics.
+- `src/app.py`: Streamlit app: drag-and-drop file uploader (or pick the white/pink noise control), runs the pipeline, shows a live activation chart (seed / hop1 / hop2+ over time) and a table of the top 15 most-activated neurons with real cell-type labels and root IDs.
 
-**Dependencies added:** `streamlit`, `plotly` (installed but not yet used, reserved for a richer graph view later), `ffmpeg` (via Homebrew — needed for `librosa` to decode MP3s, not just WAV).
+**Dependencies added:** `streamlit`, `plotly` (installed but not yet used, reserved for a richer graph view later), `ffmpeg` (via Homebrew, needed for `librosa` to decode MP3s, not just WAV).
 
-**Smoke-tested** end-to-end with the pink noise control — pipeline runs in well under a second for a 30s track (26k-node sparse matrix-vector propagation × 150 frames is cheap).
+**Smoke-tested** end-to-end with the pink noise control: pipeline runs in well under a second for a 30s track (26k-node sparse matrix-vector propagation × 150 frames is cheap).
 
 **Launched locally:** `streamlit run src/app.py --server.address localhost` → http://localhost:8501. Deliberately bound to localhost only (Streamlit defaults to binding all network interfaces, which isn't needed for a local personal tool).
 
-**Noted for later:** user has access to additional FlyWire datasets beyond FAFB/BANC — notably **MANC** (male nerve cord, 23,665 neurons), which is arguably more relevant for "behavior" than brain-only data, since motor output originates in the nerve cord. Worth expanding the graph to include nerve cord connectivity once the brain-only version is validated as working well.
+**Noted for later:** user has access to additional FlyWire datasets beyond FAFB/BANC, notably **MANC** (male nerve cord, 23,665 neurons), which is arguably more relevant for "behavior" than brain-only data, since motor output originates in the nerve cord. Worth expanding the graph to include nerve cord connectivity once the brain-only version is validated as working well.
 
 **Next:** try it live with real tracks via drag-and-drop (no data pipeline changes needed), see if the activation patterns look meaningfully different across genres, then decide whether to tune `N_HOPS`/`MIN_SYN` (current graph reaches ~16% of the brain, broader than ideal) or add a live-streaming chart update instead of compute-then-display.
 
 ---
 
-## 2026-08-16 (cont.) — Brain region visualization for portfolio use
+## 2026-08-16 (cont.): Brain region visualization for portfolio use
 
-Wanted a visually pleasing "which part of the brain fires" view, not just line charts. No per-neuron x/y/z coordinates exist in the public CSV export (that needs mesh access via the CAVE API, which we're still locked out of on dataset permissions) — but the `Top in/out region` field on every neuron gives a real named anatomical region (e.g. `AMMC`, `AL`, `MB_CA`, `T1_PRONM`), and this BANC dataset already includes nerve cord segments, so the earlier "more brains/MANC" idea is already covered without a separate pull.
+Wanted a visually pleasing "which part of the brain fires" view, not just line charts. No per-neuron x/y/z coordinates exist in the public CSV export (that needs mesh access via the CAVE API, which we're still locked out of on dataset permissions), but the `Top in/out region` field on every neuron gives a real named anatomical region (e.g. `AMMC`, `AL`, `MB_CA`, `T1_PRONM`), and this BANC dataset already includes nerve cord segments, so the earlier "more brains/MANC" idea is already covered without a separate pull.
 
-- Added `region` attribute to `fetch_connectome.py`'s node metadata (primary token from `Top in/out region`, compound labels like `ME.LO` collapsed to `ME`). Re-ran the fetch — same 25,971/122,317 node/edge counts, now with region labels attached.
+- Added `region` attribute to `fetch_connectome.py`'s node metadata (primary token from `Top in/out region`, compound labels like `ME.LO` collapsed to `ME`). Re-ran the fetch, same 25,971/122,317 node/edge counts, now with region labels attached.
 - Extended `simulate.py` to track **per-region, per-frame activation** (not just per-hop-layer), using `np.bincount` for a cheap weighted mean per timestep. Filters out regions with fewer than 15 neurons in the subgraph to avoid noisy single-neuron means.
-- Built `src/brain_map.py`: a hand-authored schematic layout of ~40 real fly neuropils (optic lobes flanking center, central brain ring, gnathal ganglion at the base, nerve cord segments chained below — topologically faithful to real fly neuroanatomy, but not pulled from an actual 3D mesh, so explicitly labeled "schematic, not to scale" in the app). Renders via Plotly: bubble size = neuron count, color = activation (Inferno scale), dark theme, hover tooltips with real region names and counts.
+- Built `src/brain_map.py`: a hand-authored schematic layout of ~40 real fly neuropils (optic lobes flanking center, central brain ring, gnathal ganglion at the base, nerve cord segments chained below, topologically faithful to real fly neuroanatomy, but not pulled from an actual 3D mesh, so explicitly labeled "schematic, not to scale" in the app). Renders via Plotly: bubble size = neuron count, color = activation (Inferno scale), dark theme, hover tooltips with real region names and counts.
 - Wired into `app.py` as a new section below the activation-over-time chart.
 
-**Verified with pink noise control:** 41 regions surfaced, AMMC (the real auditory center) shows high activation as expected given it's directly downstream of the seed layer — a reasonable sanity check that the pipeline is behaving sensibly before testing real music.
+**Verified with pink noise control:** 41 regions surfaced, AMMC (the real auditory center) shows high activation as expected given it's directly downstream of the seed layer, a reasonable sanity check that the pipeline is behaving sensibly before testing real music.
 
 **Next:** test with real tracks dragged into the running app, see how region-level patterns differ by genre/track character.
 
 ---
 
-## 2026-08-16 (cont.) — Fixed saturation bug, added pulsing animation
+## 2026-08-16 (cont.): Fixed saturation bug, added pulsing animation
 
 User feedback after trying it live: activation looked "too uniform" across tracks.
 
-**Root cause found:** the recurrent propagation term summed *raw* incoming synaptic weight per neuron — some neurons have incoming-strength up to 242 in this graph. `alpha * incoming` (alpha=0.6) blew straight through `tanh`'s saturation ceiling within a couple of frames and pinned activation near 1.0 for most of the graph regardless of what was playing. Fixed in `simulate.py` by column-normalizing the adjacency matrix so `incoming` is a weighted *average* of predecessor activation (bounded ~0-1) instead of an unbounded sum. Verified with a synthetic pulsing test signal: activation now genuinely rises and falls (0.44-0.82 range) tracking the input instead of flatlining at ceiling.
+**Root cause found:** the recurrent propagation term summed *raw* incoming synaptic weight per neuron: some neurons have incoming-strength up to 242 in this graph. `alpha * incoming` (alpha=0.6) blew straight through `tanh`'s saturation ceiling within a couple of frames and pinned activation near 1.0 for most of the graph regardless of what was playing. Fixed in `simulate.py` by column-normalizing the adjacency matrix so `incoming` is a weighted *average* of predecessor activation (bounded ~0-1) instead of an unbounded sum. Verified with a synthetic pulsing test signal: activation now genuinely rises and falls (0.44-0.82 range) tracking the input instead of flatlining at ceiling.
 
-**Added pulsing animation:** `brain_map.py` now has `build_animated_figure()` — Plotly frames (subsampled every 3rd of 150 frames = 51 steps) with a Play/Pause button and scrubber, so the schematic bubbles actually change color over the course of the track instead of showing only a final snapshot. `app.py` now also plays the audio (`st.audio`) alongside so you can listen while watching it pulse (not sample-accurate synced playback, but close enough to follow along).
+**Added pulsing animation:** `brain_map.py` now has `build_animated_figure()`: Plotly frames (subsampled every 3rd of 150 frames = 51 steps) with a Play/Pause button and scrubber, so the schematic bubbles actually change color over the course of the track instead of showing only a final snapshot. `app.py` now also plays the audio (`st.audio`) alongside so you can listen while watching it pulse (not sample-accurate synced playback, but close enough to follow along).
 
 **Next:** get real tracks tested live; check whether region-level pulse patterns meaningfully differ by genre now that the saturation bug is fixed.
 
 ---
 
-## 2026-08-16 (cont.) — Found real 3D coordinates, unblocking true 3D visualization
+## 2026-08-16 (cont.): Found real 3D coordinates, unblocking true 3D visualization
 
-User asked how to get CAVE dataset permission properly (rather than working around it). Turned out the earlier 403 wasn't a real permission block — it was the wrong datastack name. We were requesting `flywire_fafb_production` (the live, contributor-only editing dataset). The **published, publicly-accessible** datastack for our downloaded data is `brain_and_nerve_cord_public` (BANC) — confirmed matching version (888) to what we already have locally. No special access request needed; our existing token already works against it.
+User asked how to get CAVE dataset permission properly (rather than working around it). Turned out the earlier 403 wasn't a real permission block: it was the wrong datastack name. We were requesting `flywire_fafb_production` (the live, contributor-only editing dataset). The **published, publicly-accessible** datastack for our downloaded data is `brain_and_nerve_cord_public` (BANC): confirmed matching version (888) to what we already have locally. No special access request needed; our existing token already works against it.
 
 This unlocks real per-neuron 3D coordinates via the `cell_representative_point` CAVE table (`pt_root_id`, `pt_position` in nm). Checked coverage against our 25,971-neuron subgraph: **99.2%** of neurons have a representative point (2,578 of 2,598 in a test batch). This is much lighter than pulling full neuron meshes (no `cloudvolume`/mesh streaming needed) and gives genuine anatomical positions rather than the hand-placed schematic layout.
 
@@ -165,9 +165,9 @@ This unlocks real per-neuron 3D coordinates via the `cell_representative_point` 
 
 ---
 
-## 2026-08-16 (cont.) — Real 3D visualization shipped
+## 2026-08-16 (cont.): Real 3D visualization shipped
 
-Wrote `src/fetch_coordinates.py`: queries `cell_representative_point` on `brain_and_nerve_cord_public` for every neuron in our subgraph, batched (500/request), cached to `data/connectome/neuron_positions.csv`. Coverage: **25,760 / 25,971 neurons (99.2%)** — essentially the whole subgraph has a real anatomical position.
+Wrote `src/fetch_coordinates.py`: queries `cell_representative_point` on `brain_and_nerve_cord_public` for every neuron in our subgraph, batched (500/request), cached to `data/connectome/neuron_positions.csv`. Coverage: **25,760 / 25,971 neurons (99.2%)**, essentially the whole subgraph has a real anatomical position.
 
 Extended `simulate.py` with an optional `node_snapshot_stride` param: instead of only tracking aggregate layer/region means, it now optionally saves full per-neuron activation snapshots at intervals (every 10th frame -> 16 snapshots for a 150-frame run) as float32 arrays, keeping memory reasonable (~1.6MB total, not 150 full copies).
 
@@ -175,13 +175,13 @@ Built `src/brain_map_3d.py`: aligns node positions to activation snapshots by ro
 
 Wired into `app.py` as the **default view**, with a radio toggle to fall back to the faster 2D schematic. Performance: full simulation + 3D figure build together take well under a second locally (25,760 real points, 16 frames).
 
-This replaces the hand-placed schematic coordinates with genuine anatomical positions — a real visual portfolio piece: an actual fly brain + nerve cord, built from real FlyWire/CAVE data, pulsing in response to whatever audio is dragged in.
+This replaces the hand-placed schematic coordinates with genuine anatomical positions, a real visual portfolio piece: an actual fly brain + nerve cord, built from real FlyWire/CAVE data, pulsing in response to whatever audio is dragged in.
 
 **Next:** try it live, check whether the 3D view is legible/performant in-browser (25k points is a lot for WebGL scatter -- may need point-count reduction or opacity tuning if it feels cluttered), and get feedback on whether genre differences are now visible.
 
 ---
 
-## 2026-08-16 (cont.) — Fixed uniform/invisible brain feedback, raised the visual bar
+## 2026-08-16 (cont.): Fixed uniform/invisible brain feedback, raised the visual bar
 
 User feedback on the first Plotly 3D pass: "can't really see a brain" (background silhouette wasn't visible, colors washed out, geometry squashed) and later "nothing fires up when the track plays." Root causes and fixes:
 - Nerve cord axis (z) is ~8x longer than the brain axis (x) in real coordinates -- `aspectmode="data"` was crushing everything into a thin sliver. Switched to `aspectmode="cube"`.
@@ -202,7 +202,7 @@ Wired in as the new default view in `app.py`, with the Plotly 3D and 2D schemati
 
 ---
 
-## 2026-08-16 (cont.) — Fixed low-poly hulls, camera framing, legend, and a genuine geometry bug
+## 2026-08-16 (cont.): Fixed low-poly hulls, camera framing, legend, and a genuine geometry bug
 
 User feedback: "lighting/glowing is nice but the background seems like random vectors/shapes" and "not really interactive." Root causes:
 - Raw `ConvexHull` output is very low-poly (~76-120 vertices) -- looked like a faceted crystal, not an organic brain shape. Fixed by subdividing + Laplacian-smoothing the hull mesh (`trimesh`) before export -- brain hull now ~4,700 verts. First attempt used `volume_constraint=True` in the smoother, which produced NaN vertices on the brain hull (negative-volume edge case) -- disabled that flag once confirmed the unconstrained version has zero NaNs.
@@ -214,7 +214,7 @@ User feedback: "lighting/glowing is nice but the background seems like random ve
 
 ---
 
-## 2026-08-16 (cont.) — Found the real bug behind the blade shape
+## 2026-08-16 (cont.): Found the real bug behind the blade shape
 
 Segmenting the nerve cord (previous entry) didn't fix it -- screenshots still showed a single blue blade, no visible purple chain. Investigated directly rather than guessing further: printed the actual brain hull bounding box and it was `[1.15M, 2.6M, 7.9M]` -- the z-axis was still body-length, meaning the "brain" bucket itself was contaminated.
 
@@ -228,7 +228,7 @@ Fix: exclude any neuron without a real resolved region label (`""` or `"NO_CONS"
 
 ---
 
-## 2026-08-16 (cont.) — Switched convex hull to density-based isosurface
+## 2026-08-16 (cont.): Switched convex hull to density-based isosurface
 
 User asked directly: "does this make sense scientifically?" Honest answer was no -- a convex hull can only produce a *convex* shape, mathematically incapable of representing the concavities of a real fly brain (the cleft between optic lobes and central brain) or the nerve cord's curve. It was a geometric artifact, not anatomy, however smoothed.
 
@@ -242,7 +242,7 @@ Filtered each surface to its single largest connected component (density noise w
 
 ---
 
-## 2026-08-16 (cont.) — Kept convex hull as a stylistic option
+## 2026-08-16 (cont.): Kept convex hull as a stylistic option
 
 User liked the visual look of the convex hull version despite it not being scientifically rigorous (see previous entry). Rather than lose it, kept both: `fetch_hull_meshes.py` now builds and saves both `smooth` (marching cubes) and `convex` (subdivided/Laplacian-smoothed convex hull) surfaces into the same `hull_meshes.json`, keyed separately. Both benefit from the `NO_CONS` exclusion fix, so the convex version should look better-proportioned than the original blade-shaped screenshot, not identical to it.
 
@@ -252,7 +252,7 @@ Added a `shell_style` parameter through `build_scene_html()` and a radio toggle 
 
 ---
 
-## 2026-08-16 (cont.) — Wired in mid/treble bands and a tonotopic-style split
+## 2026-08-16 (cont.): Wired in mid/treble bands and a tonotopic-style split
 
 User asked directly: "does this brain respond to the actual music track or does it just light up when music plays?" Honest audit of `simulate.py` found a real gap: the drive formula only used `rms`, `onset`, and `bass` -- `mid` and `treble` were extracted by `audio_features.py` but never fed into the simulation, and `tempo` was computed but only ever displayed as text.
 
@@ -269,7 +269,7 @@ Added a "Response by frequency band" chart in `app.py` so this is visible live f
 
 ---
 
-## 2026-08-16 (cont.) — Wired in real neurotransmitter signs + contained the camera
+## 2026-08-16 (cont.): Wired in real neurotransmitter signs + contained the camera
 
 **Neurotransmitter signs (the #2 improvement from the earlier "how could we improve this model" discussion):** the connections file's `nt_type` column turned out to be entirely empty (all NaN) -- but `neurons.csv`'s "Predicted NT type" is a real per-neuron field, which is actually the biologically correct level anyway (transmitter identity is a property of the presynaptic neuron, not the individual synapse).
 
@@ -290,7 +290,7 @@ Implementation: each edge weight is now signed by its presynaptic neuron's NT si
 
 ---
 
-## 2026-08-16 (cont.) — Fixed off-center rendering, lit-before-playing, and locked camera
+## 2026-08-16 (cont.): Fixed off-center rendering, lit-before-playing, and locked camera
 
 **Disabled auto-rotate** (`controls.autoRotate = false`) per request -- the model now stays fixed in place until manually dragged, instead of continuously spinning.
 
@@ -302,7 +302,7 @@ Implementation: each edge weight is now signed by its presynaptic neuron's NT si
 
 ---
 
-## 2026-08-16 (cont.) — Fixed real centering bug (was targeting bounding-box midpoint, not center of mass)
+## 2026-08-16 (cont.): Fixed real centering bug (was targeting bounding-box midpoint, not center of mass)
 
 Previous "off-center" fix (ResizeObserver) didn't actually solve it -- user screenshot confirmed the object still rendered in the upper-right, well off the true center of the frame, even after that fix. Correctly diagnosed the real cause this time: `computeBounds()` set the camera target to the midpoint of the combined bounding box (min+max)/2 -- but the nerve cord hull extends much further in one direction than the brain hull or the actual glowing neuron cluster, so the box midpoint sits in relatively empty space, away from where the dense, visible structure actually is. Camera math itself was fine; it was correctly centering on an *empty* point.
 
@@ -312,7 +312,7 @@ Fixed by targeting the actual centroid of `fgPositions` (the real auditory-pathw
 
 ---
 
-## 2026-08-16 (cont.) — Fixed instant-snap activation, nudged framing down, restored orbit
+## 2026-08-16 (cont.): Fixed instant-snap activation, nudged framing down, restored orbit
 
 **Instant light-up bug:** user reported activation jumped instantly on pressing Play instead of fading in with the music. Real cause: the animate loop was directly *assigning* `currentDisplay = interpolatedValues(currentTime)` each frame while playing -- no smoothing, so it snapped straight to whatever the target value was. Fixed by easing toward the target (`currentDisplay[i] += (target[i] - currentDisplay[i]) * 0.12` per frame) instead of overwriting, so activation now genuinely ramps up/down relative to the track rather than snapping.
 
@@ -324,7 +324,7 @@ Fixed by targeting the actual centroid of `fgPositions` (the real auditory-pathw
 
 ---
 
-## 2026-08-16 (cont.) — Real leaky integrate-and-fire dynamics (the #1 improvement)
+## 2026-08-16 (cont.): Real leaky integrate-and-fire dynamics (the #1 improvement)
 
 Checked user-provided FAFB downloads (`classification.csv.gz`, `fafb_v783_princeton_synapse_table.csv.gz`, `neurons.csv.gz`) and the BANC<->FAFB cross-registration table (`banc_fafb_nblast_v2`) as a possible bridge to richer per-synapse NT data. Decided against using it: match confidence averages ~0.86 (NBLAST morphological similarity, not synaptic identity) and 90% of matches are unvalidated -- chaining two ~85%-confidence cross-dataset guesses (source match + target match) to get per-synapse precision isn't a good trade against what we already have (real per-neuron predicted NT, ~93% coverage, already wired in). Also confirmed the FAFB Neuron Skeletons file (13GB) is unsuitable regardless -- both because of size (our current architecture inlines everything as one HTML blob, already ~15MB) and the same cross-dataset ID mismatch.
 
@@ -342,7 +342,7 @@ with real spiking (threshold crossing -> reset -> refractory period), synaptic c
 
 ---
 
-## 2026-08-16 (cont.) — Fixed "lit before playing" and "instant" activation
+## 2026-08-16 (cont.): Fixed "lit before playing" and "instant" activation
 
 User: "why do the neurons fire up before the music plays, and instantly?" Two separate real bugs, not one:
 
@@ -354,7 +354,7 @@ User: "why do the neurons fire up before the music plays, and instantly?" Two se
 
 ---
 
-## 2026-08-16 (cont.) — Found and fixed real bug: works on noise, dead on real songs
+## 2026-08-16 (cont.): Found and fixed real bug: works on noise, dead on real songs
 
 User: "works on white/pink noise but not when i drag and drop a song." Verified directly with browser automation (Playwright) that the pipeline genuinely works correctly on the pink noise control -- idle dark, clear bright activation cluster mid-playback, no console errors. So the bug was track-specific, not a rendering/pipeline failure.
 
@@ -368,7 +368,7 @@ Isolated methodically: MP3 decoding path tested in isolation with a converted pi
 
 ---
 
-## 2026-08-16 (cont.) — Adopted Shiu et al. 2024's exact published LIF parameters
+## 2026-08-16 (cont.): Adopted Shiu et al. 2024's exact published LIF parameters
 
 User shared the Nature "FlyWire connectome" collection page. Most relevant entry: Shiu et al. 2024, Nature, "A Drosophila computational brain model reveals sensorimotor processing" -- a leaky integrate-and-fire model built on this SAME FlyWire connectome. Directly answers the earlier-flagged "arbitrary" parts of our model with real published numbers.
 
@@ -388,7 +388,7 @@ Adopted their exact values (previous ad hoc/unitless choices in parens):
 
 ---
 
-## 2026-08-16 (cont.) — Extended subgraph to 3 hops (real reach, not a visual trick)
+## 2026-08-16 (cont.): Extended subgraph to 3 hops (real reach, not a visual trick)
 
 User asked whether the "only the bottom lights up" result was more scientifically accurate than extending further. Clarified: neither is more/less accurate -- both use real wiring data. The 2-hop cutoff was a computational choice (subgraph extraction limit), not a biological boundary; real auditory-evoked signal in an actual fly brain does propagate further than 2 synapses. Extending hops is equally real, just more complete. User chose to extend.
 
@@ -402,7 +402,7 @@ Rebuilt the full downstream pipeline: `fetch_connectome.py` (new subgraph) and `
 
 ---
 
-## 2026-08-16 (cont.) — Fixed: clicking shell-style toggle wiped the whole results view
+## 2026-08-16 (cont.): Fixed: clicking shell-style toggle wiped the whole results view
 
 User: "this option does not work" (Convex hull shell-style radio). Reproduced directly with Playwright: clicking it reset the entire app back to the blank pre-run form, losing all charts and the scene.
 
@@ -414,7 +414,7 @@ Fixed by separating computation from rendering: the simulation still only runs `
 
 ---
 
-## 2026-08-16 (cont.) — Boosted visual brightness mapping + explained angle-dependent glow
+## 2026-08-16 (cont.): Boosted visual brightness mapping + explained angle-dependent glow
 
 **Visual brightness boost (rendering-only, no change to underlying simulation):** user felt neurons weren't "firing up" visually as much after the Shiu et al. parameter switch. Real LIF dynamics are genuinely sparser/more graded than the old continuous tanh model, and Inferno reads dark below ~50% -- so moderate (but real) activity was landing in visually dim territory. Added a `sqrt` curve to the brightness/size mapping in `web_scene.py` (lifts midtones without changing relative ordering or the underlying values) and tightened the color scale reference point (95th percentile instead of 98th). Purely a perceptual remapping, not a data change.
 
@@ -422,7 +422,7 @@ Fixed by separating computation from rendering: the simulation still only runs `
 
 ---
 
-## 2026-08-16 (cont.) — UX/UI cleanup pass
+## 2026-08-16 (cont.): UX/UI cleanup pass
 
 User asked for UX/UI recommendations, then approved implementing them. Changes:
 
@@ -435,7 +435,7 @@ Verified visually via Playwright screenshots (before-run and after-run states) -
 
 ---
 
-## 2026-08-16 (cont.) — Verified-NT preference + About panel
+## 2026-08-16 (cont.): Verified-NT preference + About panel
 
 Both remaining items from the earlier "next steps" discussion:
 
@@ -447,13 +447,13 @@ Both changes visible live at localhost:8501.
 
 ---
 
-## 2026-08-16 (cont.) — Button alignment fix
+## 2026-08-16 (cont.): Button alignment fix
 
 User flagged the "Run simulation" button wasn't vertically aligned with the "...or use a control track" selectbox next to it -- the `st.write("")` spacer used to push it down wasn't the right height. Replaced with a precise `st.markdown("<div style='height:28px'></div>")` spacer. Verified via Playwright screenshot: button now lines up exactly with the selectbox input.
 
 ---
 
-## 2026-08-19 — Audio front-end overhaul: mel bands, onset, HPSS, chroma, beat-sync
+## 2026-08-19: Audio front-end overhaul: mel bands, onset, HPSS, chroma, beat-sync
 
 Prompted by a comment on the LinkedIn post ("cochlear-style front end with mel spectrograms and log compression might help the network respond to real music dynamics") -- used as the jumping-off point for a broader pass on the audio-to-drive mapping layer, planned and shipped as a sequence of small, independently revertable commits.
 
