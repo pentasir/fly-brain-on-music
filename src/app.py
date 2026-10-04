@@ -84,7 +84,11 @@ relative to its own range over the track, with at least 2 mV of depolarization n
 brightness. In this model, spiking is concentrated in the ear neurons and their first relays
 (AMMC and nearby); further out, neurons mostly show small sub-threshold changes rather than spikes.
 The faint dots everywhere else are the real wiring: the routes the signal could take, including
-down into the nerve cord, shown as structure, not as activity.
+down into the nerve cord, shown as structure, not as activity, colored by BANC's region labels.
+Flashes are spikes, drawn at each neuron's simulated firing rate for that moment (exact spike timing
+within a frame isn't stored). Lines are real connections: ear to first relay, the strongest next
+links, and the strongest real path from the ear to every leg and wing motor neuron. A pulse runs
+along a line only when its source neuron spikes, which is why most pulses stay near the ears.
 
 **Bottom line**: this is a real wiring diagram with a real spiking-neuron model running on top,
 driven by an artistic (not scientifically validated) audio-input layer. Treat it as connectome-
@@ -324,6 +328,7 @@ if "result" in st.session_state:
         html = build_scene_html(
             result["node_root_ids"], result["node_snapshots"], result["node_is_seed"], audio_bytes, mime,
             node_hop=result["node_hop"], shell_style=shell_style,
+            spike_frames=result["spike_frames"], spike_times=result["times"],
         )
     st.markdown("<div style='margin-top:-0.8rem;'></div>", unsafe_allow_html=True)
     components.html(html, height=730)

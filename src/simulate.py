@@ -319,6 +319,7 @@ def run_simulation(
     pitch_traces = [[] for _ in range(N_PITCHES)]
     region_series = np.zeros((n_frames, n_regions), dtype=np.float64)
     node_snapshots = []  # list of (time, state.copy()) if node_snapshot_stride > 0
+    spike_frames = []  # per frame: (node indices that spiked, their firing rate in Hz over that frame)
 
     band_idx = [band_group == b for b in range(N_BANDS)]
     pitch_idx = [pitch_group == p for p in range(N_PITCHES)]
@@ -347,6 +348,7 @@ def run_simulation(
         drive_vec = drive_vec * pitch_factor_vec
 
         V_sum = np.zeros(n, dtype=np.float64)
+        frame_spikes = np.zeros(n, dtype=np.float64)
         for _ in range(n_substeps):
             active = refrac <= 0
             I_syn = alpha * (A.T @ spike_prev)
@@ -356,6 +358,7 @@ def run_simulation(
             V = np.where(spike, V_RESET, V)
             refrac = np.where(spike, T_REFRAC_MS, np.maximum(refrac - dt_ms, 0.0))
             spike_prev = spike.astype(np.float64)
+            frame_spikes += spike_prev
             V_sum += V
 
         # frame-representative membrane potential, reported RELATIVE TO REST (not raw mV)
@@ -374,6 +377,13 @@ def run_simulation(
 
         sums = np.bincount(region_inverse, weights=state, minlength=n_regions)
         region_series[t] = sums / np.maximum(region_counts, 1)
+
+        # Sparse per-frame spike record for the scene's spike flashes. Rates, not
+        # exact spike times: audio drive is held constant within a frame, so
+        # sub-frame timing carries no musical information, and storing every
+        # spike time would bloat the embedded payload.
+        spiked = np.nonzero(frame_spikes)[0]
+        spike_frames.append((spiked.tolist(), np.round(frame_spikes[spiked] / (frame_duration_ms / 1000.0), 1).tolist()))
 
         if node_snapshot_stride and (t % node_snapshot_stride == 0 or t == n_frames - 1):
             node_snapshots.append((float(features["times"][t]), state.astype(np.float32).copy()))
@@ -413,6 +423,7 @@ def run_simulation(
         region_final=region_final,
         region_counts=region_counts_result,
         node_snapshots=node_snapshots,
+        spike_frames=spike_frames,
         node_root_ids=arrays["root_ids"],
         node_labels=arrays["labels"],
         node_is_seed=seed_mask.astype(bool),
