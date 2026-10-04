@@ -196,9 +196,10 @@ def build_scene_html(
       <div><span style="color:#5a7fd6;">&#9679;</span> blue shell = brain (from real neuron positions)</div>
       <div><span style="color:#8f5ad6;">&#9679;</span> purple shell = nerve cord (from real neuron positions)</div>
       <div><span style="color:#f0c527;">&#9679;</span> bright points = simulated activity on the hearing pathway (Johnston's Organ A/B &#8594; AMMC &#8594; downstream)</div>
-      <details style="margin-top:4px;"><summary style="cursor:pointer; color:#ccc;">flashes and region colors</summary>
+      <details style="margin-top:4px;"><summary style="cursor:pointer; color:#ccc;">flashes, haze and region colors</summary>
       <div><span style="color:#fff3c4;">&#10022;</span> flashes = spikes, drawn at each neuron's simulated firing rate</div>
-      <div style="margin-top:4px;">faint dots = the real wiring, colored by region:</div>
+      <div><span style="color:#c9763a;">&#9679;</span> soft amber haze = small voltage changes that don't reach a spike (0.01 to 2 mV), magnified so they're visible</div>
+      <div style="margin-top:4px;">dim dots = every neuron on the pathway at its real position, colored by region:</div>
       {region_legend}
       </details>
       <div style="margin-top:6px; color:#888;">Drag to orbit &middot; scroll to zoom</div>
@@ -340,11 +341,22 @@ bounds.center = computeCentroid(DATA.brainHull.vertices.concat(DATA.vncHull.vert
 // lower within the frame, since OrbitControls always renders its target dead
 // center
 const lookY = bounds.center[1] + bounds.radius * 0.08;
+// Default view frames the hearing neurons, where the real activity is, rather
+// than a wide shot of mostly dark shells: aim mostly at the seed (ear)
+// neurons' centroid, nudged toward the shells' center, and start closer.
+const seedSum = [0, 0, 0]; let nSeed = 0;
+for (let i = 0; i < DATA.isSeed.length; i++) {{
+  if (!DATA.isSeed[i]) continue;
+  for (let d = 0; d < 3; d++) seedSum[d] += DATA.fgPositions[i*3 + d];
+  nSeed++;
+}}
+const seedCenter = nSeed ? seedSum.map(v => v / nSeed) : [bounds.center[0], lookY, bounds.center[2]];
+const look = [0, 1, 2].map(d => 0.25 * [bounds.center[0], lookY, bounds.center[2]][d] + 0.75 * seedCenter[d]);
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(55, width/height, 0.01, 1000);
-const camDist = bounds.radius * 0.85 * 0.9;  // 10% closer -> model reads ~10% larger on load
-camera.position.set(bounds.center[0] + camDist*0.6, lookY + camDist*0.5, bounds.center[2] + camDist*0.6);
+const camDist = bounds.radius * 0.28;
+camera.position.set(look[0] + camDist*0.6, look[1] + camDist*0.5, look[2] + camDist*0.6);
 
 const renderer = new THREE.WebGLRenderer({{ antialias: true }});
 renderer.setSize(width, height);
@@ -352,12 +364,12 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 container.insertBefore(renderer.domElement, container.firstChild);
 
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(bounds.center[0], lookY, bounds.center[2]);
+controls.target.set(look[0], look[1], look[2]);
 controls.enableDamping = true;
 controls.dampingFactor = 0.06;
 controls.autoRotate = true;
 controls.autoRotateSpeed = 0.5;
-controls.minDistance = bounds.radius * 0.35;
+controls.minDistance = bounds.radius * 0.12;
 controls.maxDistance = bounds.radius * 1.8;
 controls.update();
 
@@ -431,7 +443,7 @@ const fgMat = new THREE.ShaderMaterial({{
 scene.add(new THREE.Points(fgGeo, fgMat));
 
 const baseSizes = new Float32Array(nFg);
-for (let i = 0; i < nFg; i++) baseSizes[i] = DATA.isSeed[i] ? 0.09 : 0.05;
+for (let i = 0; i < nFg; i++) baseSizes[i] = DATA.isSeed[i] ? 0.10 : 0.22;
 
 // PER-NODE span, not per-group: a handful of individual "hub" neurons (heavily
 // connected downstream targets) can sit near their own ceiling almost
@@ -449,6 +461,14 @@ const spanByNode = DATA.nodeCmax.map(cmax => Math.max(cmax - DATA.cmin, 1e-6));
 // spiking is graded/patchy downstream), so they keep the original <1 boost
 // that lifts moderate activity into visibly-lit range.
 const gammaByGroup = [1.6, 1.0, 0.5];
+// Wiring brightness: every pathway neuron is drawn as a visible particle at its
+// real position, so the cloud traces the real anatomy. Display only.
+const WIRING_GAIN = 3.0;
+// Sub-threshold glow: voltage changes too small to spike (0.01 to 2 mV above
+// rest) are real model output, shown magnified on a log scale as a soft amber
+// haze, distinct from the inferno activity colors. The legend says so.
+const SUB_MIN_MV = 0.01, SUB_MAX_MV = 2.0;
+const SUB_LOG_SPAN = Math.log10(SUB_MAX_MV / SUB_MIN_MV);
 const flash = new Float32Array(nFg);  // spike flash intensity per node, decays each tick
 
 function applyActivation(values) {{
@@ -465,10 +485,12 @@ function applyActivation(values) {{
     // Activity colors take over above it; spike flashes add a hot white-gold.
     const base = DATA.regionColors[DATA.regionGroup[i]];
     const fl = flash[i];
-    colors[i*3]   = Math.max(r, base[0]) + fl * 1.0;
-    colors[i*3+1] = Math.max(g, base[1]) + fl * 0.8;
-    colors[i*3+2] = Math.max(b, base[2]) + fl * 0.5;
-    sizes[i] = baseSizes[i] * (1.0 + norm * 3.5 + fl * 3.0);
+    const v = values[i] - DATA.cmin;
+    const sub = v > SUB_MIN_MV ? Math.min(1, Math.log10(v / SUB_MIN_MV) / SUB_LOG_SPAN) : 0;
+    colors[i*3]   = Math.max(r, base[0] * WIRING_GAIN + sub * 0.40) + fl * 1.0;
+    colors[i*3+1] = Math.max(g, base[1] * WIRING_GAIN + sub * 0.20) + fl * 0.8;
+    colors[i*3+2] = Math.max(b, base[2] * WIRING_GAIN + sub * 0.06) + fl * 0.5;
+    sizes[i] = baseSizes[i] * (1.0 + norm * 3.5 + sub * 1.0 + fl * 3.0);
   }}
   colorAttr.needsUpdate = true;
   sizeAttr.needsUpdate = true;

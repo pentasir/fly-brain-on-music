@@ -527,3 +527,13 @@ User feedback after the hearing-only rebuild: "the model is visually less impres
 User feedback on the live app: "pathways are too ugly. remove". Seen live, the 2,137 route lines bundle into a dense grey sheaf from the ear clusters up through the neck, which reads as clutter, not anatomy, and the pulses were rarely visible anyway. Removed the whole layer: `_route_edges`, `ROUTE_HOP2_TOP`, the `routes` payload, the `LineSegments` pulse shader and its legend line. Kept bloom, region colors and spike flashes. Also smaller embedded HTML.
 
 Same session, separate fix: visitors whose browser session predated the visual-pass deploy hit `KeyError: 'spike_frames'`, because Streamlit keeps each session's last result in memory across a code reload. `app.py` now drops a stored result missing that key and shows the setup page instead.
+
+## 2026-10-05 (cont.): Particle cloud, sub-threshold haze, closer camera
+
+User compared the live app with the Pentasir case-study screenshots (taken from the pre-rebuild build) and asked for better visuals. Those older shots looked dense for two reasons we removed on purpose: ~2,800 smell neurons in the seed set, and per-neuron normalization that stretched 0.01 mV wiggles to full glow. Measured on Chopin before choosing fixes: hop1 neurons peak at 1.3 mV median (92% move at all), hop2 22% move, hop3+ about 2%. So the honest density has to come from structure, not activity.
+
+1. **Particle cloud.** Every pathway neuron is now a visible particle at its real position (non-seed base size 0.05 to 0.22, wiring color gain 3.0). Seed points stay small (0.10) so the ear clusters resolve into sparks instead of white blobs.
+2. **Sub-threshold haze.** New display channel: voltage 0.01 to 2 mV above rest, log-scaled, drawn as a soft amber tint and slight size boost. Legend and About panel say it's magnified. The 2 mV floor on the main activity colors is unchanged.
+3. **Closer default camera.** Target is 75% of the way from the shells' center to the seed centroid; start distance 0.28 x radius (was 0.765); min zoom distance lowered to 0.12 x radius so users can get in close.
+
+Tuned from three rounds of screenshots. Capture gotcha: CDP `Page.captureScreenshot` hangs when the Playwright Chrome window is behind other windows (rendering paused); call `page.bringToFront()` and `Emulation.setFocusEmulationEnabled` first.

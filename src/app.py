@@ -83,10 +83,11 @@ ABOUT_MD = """
 relative to its own range over the track, with at least 2 mV of depolarization needed for full
 brightness. In this model, spiking is concentrated in the ear neurons and their first relays
 (AMMC and nearby); further out, neurons mostly show small sub-threshold changes rather than spikes.
-The faint dots everywhere else are the real wiring: the routes the signal could take, including
+The dim dots everywhere else are every neuron on the pathway at its real position, including
 down into the nerve cord, shown as structure, not as activity, colored by BANC's region labels.
 Flashes are spikes, drawn at each neuron's simulated firing rate for that moment (exact spike timing
-within a frame isn't stored).
+within a frame isn't stored). The soft amber haze is real but magnified: voltage changes of 0.01 to
+2 mV that never reach a spike, shown on a log scale so they're visible at all.
 
 **Bottom line**: this is a real wiring diagram with a real spiking-neuron model running on top,
 driven by an artistic (not scientifically validated) audio-input layer. Treat it as connectome-
