@@ -21,6 +21,9 @@ SCALE = 1.0 / 60.0  # um -> scene units, keeps the whole structure in a compact 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data" / "connectome"
 
 
+MIN_SPAN_MV = 2.0  # see the per-node span floor in build_scene_html
+
+
 def _round(arr, decimals):
     return np.round(arr, decimals).tolist()
 
@@ -100,6 +103,12 @@ def build_scene_html(
         # degenerate/near-silent nodes fall back to their group's ceiling rather
         # than a near-zero span, which would amplify tiny noise into flicker.
         node_cmax = np.where(node_cmax - cmin >= 1e-3, node_cmax, group_cmax_arr)
+        # Absolute floor on each node's span. Without it, a neuron whose voltage
+        # only ever wiggles by ~0.01mV got stretched to full brightness, so
+        # neurons that never came near firing glowed like active ones. With the
+        # floor, full brightness needs at least MIN_SPAN_MV of depolarization
+        # (~30% of the 7mV rest-to-threshold gap); smaller wiggles stay dark.
+        node_cmax = np.maximum(node_cmax, cmin + MIN_SPAN_MV)
     else:
         node_cmax = np.full(len(fx), cmax)
 
@@ -130,7 +139,7 @@ def build_scene_html(
       <div style="color:#eee; font-weight:600; margin-bottom:4px;">Real FlyWire connectome</div>
       <div><span style="color:#5a7fd6;">&#9679;</span> blue shell = brain (from real neuron positions)</div>
       <div><span style="color:#8f5ad6;">&#9679;</span> purple shell = nerve cord (from real neuron positions)</div>
-      <div><span style="color:#f0c527;">&#9679;</span> glowing points = auditory pathway (Johnston's Organ &#8594; AMMC &#8594; downstream), brightness/size = simulated activation</div>
+      <div><span style="color:#f0c527;">&#9679;</span> bright points = simulated activity on the hearing pathway (Johnston's Organ A/B &#8594; AMMC &#8594; downstream); faint dots = the real wiring, shown as structure</div>
       <div style="margin-top:6px; color:#888;">Drag to orbit &middot; scroll to zoom</div>
     </div>
   </div>
@@ -377,6 +386,7 @@ const spanByNode = DATA.nodeCmax.map(cmax => Math.max(cmax - DATA.cmin, 1e-6));
 // spiking is graded/patchy downstream), so they keep the original <1 boost
 // that lifts moderate activity into visibly-lit range.
 const gammaByGroup = [1.6, 1.0, 0.5];
+const WIRING_TINT = [0.05, 0.07, 0.13];
 
 function applyActivation(values) {{
   const colors = colorAttr.array, sizes = sizeAttr.array;
@@ -386,7 +396,10 @@ function applyActivation(values) {{
     const raw = Math.min(1, Math.max(0, (values[i] - DATA.cmin) / span));
     const norm = Math.pow(raw, gammaByGroup[group]);
     const [r,g,b] = infernoColor(norm);
-    colors[i*3] = r; colors[i*3+1] = g; colors[i*3+2] = b;
+    // Static wiring tint: every neuron in the pathway keeps a faint base color,
+    // so the real route (ear -> brain -> nerve cord) stays visible as structure
+    // even where nothing is active. Activity colors take over above it.
+    colors[i*3] = Math.max(r, WIRING_TINT[0]); colors[i*3+1] = Math.max(g, WIRING_TINT[1]); colors[i*3+2] = Math.max(b, WIRING_TINT[2]);
     sizes[i] = baseSizes[i] * (1.0 + norm * 3.5);
   }}
   colorAttr.needsUpdate = true;

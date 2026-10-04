@@ -13,8 +13,9 @@ nonlinearity, not a generic tanh squashing function.
 
 Parameters (tau_m, V_rest, V_th, T_refrac, W_syn) are taken from Shiu et al.
 2024, Nature, "A Drosophila computational brain model reveals sensorimotor
-processing" -- a leaky integrate-and-fire model built on this SAME FlyWire
-connectome. Their tau_m (= R_mbr * C_mbr = 10 MOhm * 0.002 uF = 20 ms)
+processing" -- a leaky integrate-and-fire model built on FlyWire's brain-only
+connectome (FAFB) of a different fly. The parameters are reused here on BANC,
+not re-fit to it. Their tau_m (= R_mbr * C_mbr = 10 MOhm * 0.002 uF = 20 ms)
 independently matches Gouwens & Wilson 2009's direct electrophysiological
 measurement (also ~20 ms), a genuine cross-validation between two different
 sources, not a coincidence of us picking the same round number twice.
@@ -27,7 +28,7 @@ that part remains our own artistic modeling layer, clearly distinguished
 from the cited synaptic/membrane parameters above.
 
 Resolution trade-off, stated plainly: integrating at the real ~1 ms
-timescale for a multi-minute track across ~26k neurons is not tractable for
+timescale for a multi-minute track across ~10k neurons is not tractable for
 an interactive local app. Each audio-derived frame (spanning roughly
 100ms-2s depending on track length) is instead substepped internally
 (N_SUBSTEPS Euler steps per frame, dt sized so tau_m is resolved reasonably
@@ -253,7 +254,7 @@ MAX_SUBSTEPS_PER_FRAME = 800  # bounds worst-case runtime for unusually long tra
 def run_simulation(
     features: dict,
     alpha: float = 1.0,  # matches Shiu et al. exactly (no extra scaling beyond W_syn) when left at 1.0
-    drive_scale: float = 12.0,  # mV -- our own artistic parameter (no literature source), sized against the 7mV rest-to-threshold gap
+    drive_scale: float = 30.0,  # mV -- our own artistic parameter (no literature source). Raised from 12 on 2026-10-05: with hearing-only seeds, 12 left JO neurons firing <1 Hz on the demo track; 30 gives tens of Hz, see BUILD_LOG
     node_snapshot_stride: int = 0,
 ) -> dict:
     arrays = _build_arrays()
