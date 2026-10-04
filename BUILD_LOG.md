@@ -470,3 +470,37 @@ Prompted by a comment on the LinkedIn post ("cochlear-style front end with mel s
 **6. Opt-in beat-synced timing.** Locks simulation frames to the track's detected beat grid (subdivided, off by default via checkbox) instead of a fixed wall-clock rate. Required moving `simulate.py`'s substep/dt computation from once-globally to inside the per-frame loop, since beat-synced frames have genuinely irregular duration (tempo drift, rubato) and a global dt estimate would silently destabilize on any frame longer than that estimate -- the same numerical-instability class already documented in this file's earlier LIF-tuning entries. Self-audited afterward (asked to "check for any bugs or tweaks that need adjusting" before considering it done) and found one real issue: an uncapped beat grid on a long, brisk-tempo track (the full 4:31 Chopin demo) produced 887 frames vs. fixed mode's 150, bloating the embedded HTML payload and node-snapshot count proportionally. Added `MAX_BEAT_FRAMES=300` with even thinning, mirroring the existing `MAX_SUBSTEPS_PER_FRAME` guard philosophy. Also found the UI's checkbox help text overpromised: it claimed the Chopin demo would "fall back to fixed-rate timing" as a rubato example, but empirical testing showed librosa's beat tracker detects a usable pulse on it (67 beats), so beat-sync engages there too -- copy corrected to describe the fallback accurately (only triggers on very-few-beats material like short clips or silence).
 
 Every step in this pass was implemented, pipeline-tested (extract → simulate, checked for NaN/instability), and boot-tested in a live Streamlit run before committing -- each shipped as its own small, separately revertable commit rather than one large batch.
+
+---
+
+## 2026-10-05: Hearing-only rebuild: seed audit, spike check, honest display
+
+Started as a small citation pass (BANC v888 is still the current default snapshot; the BANC paper landed in *Nature* on 2026-06-08 as Bates et al., "Distributed control circuits across a brain-and-cord connectome"). Checking Shiu et al. 2024's abstract against our docs found the first issue, and checking the seed set found a bigger one.
+
+**1. Citation fix.** README, About panel and `simulate.py` docstring all said the Shiu et al. LIF model was "built on this same connectome". It wasn't: their abstract describes the FlyWire adult central brain connectome (FAFB, >125k neurons), a different fly from BANC. Wording now says their parameters are reused on BANC, not re-fit. Added the BANC paper to README credits and the About panel.
+
+**2. Seed audit: the "auditory" seed set was mostly smell.** `fetch_connectome.py` seeded from every neuron on `left_antennal_nerve` / `right_antennal_nerve`. Breakdown of those 4,502 neurons by `Class`: 2,775 olfactory receptor neurons (62%), 1,192 chordotonal (Johnston's Organ), 90 hygrosensory, 92 bristle, 31 thermosensory, ~20 orphan, plus a few motor. So most of the network the music drove was olfactory, which explains why AL and MB_CA (Kenyon cells, 2,683 in the old subgraph) were so prominent. User chose option A: seed from JO subgroups A and B only (`Sub Class` in `johnstons_organ_A_neuron`, `johnstons_organ_B_neuron`, 511 neurons), the sound-sensitive subgroups per Kamikouchi et al. 2009 and Yorozu et al. 2009 (both *Nature*); C and E mainly encode gravity/wind. Verified the two papers via Crossref/Europe PMC before citing.
+
+**3. Rebuilt the subgraph at MIN_SYN=8 (was 12).** Sized three thresholds first with JO-A/B seeds: MIN_SYN=5 → 34,546 neurons (too big for the inline-JSON scene), 8 → 10,771 neurons / 30,380 edges, 12 → 4,553. Picked 8: under the old 22,878-node size budget and keeps more real convergence. Re-ran `fetch_coordinates.py` against `brain_and_nerve_cord_public` (materialization 888): positions for 10,771/10,771. Hull meshes and context positions are built from a whole-body sample, so they didn't need rebuilding. Note: `check_auth.py` still tests `flywire_fafb_production` and 403s (no FAFB permission); BANC access works fine, so that script's check is misleading, not a real failure.
+
+**4. Spike check (counted spikes per hop, not just mean voltage).** Instrumented `run_simulation` to count spikes by hop distance on the Chopin demo (273 s):
+
+| Graph / drive_scale | hop 0 (seeds) | hop 1 | hop 2 | hop 3 |
+|---|---|---|---|---|
+| old antennal-nerve graph, 12 | 0.8 Hz | 14.5 Hz | 3.6 Hz | ~0 |
+| JO-A/B graph, 12 | 0.8 Hz (313/511 ever fired) | 0 | 0 | 0 |
+| JO-A/B graph, 30 | 20.2 Hz | 0.4 Hz (22/127 fired) | ~0 (5/1287) | 0 |
+| JO-A/B graph, 50 | 34.5 Hz | 1.4 Hz | ~0 | ~0 |
+| JO-A/B graph, 80 | 49.6 Hz | 3.5 Hz | 0.1 Hz | ~0 |
+
+Takeaways: (a) the old network's downstream spiking came from many olfactory neurons converging on each relay; (b) with true hearing seeds, spiking in this model mostly stops after the first relay even at strong drive; (c) most of the downstream "glow" has always been sub-threshold voltage stretched by per-node normalization, not spiking. Also checked whether the coarse 5 ms Euler step under-delivers synaptic input: per-spike effect here is `dt/tau_m * W_syn = 0.25 * W_syn`, which matches Shiu's conductance model's integrated effect (`tau_syn/tau_m * W_syn` with tau_syn = 5 ms), so it is not a units bug.
+
+**5. Honest version (user's choice).**
+- `drive_scale` default 12 → 30 (seeds fire tens of Hz on the demo). Still documented as our own artistic parameter; searched for single-JON firing-rate data to calibrate against and found only population-level recordings, so no literature number is claimed.
+- `web_scene.py`: per-node brightness span floored at `MIN_SPAN_MV = 2.0` (~30% of the 7 mV rest-to-threshold gap). Before, a node whose 95th percentile was 0.001 mV got stretched to full brightness.
+- `web_scene.py`: static `WIRING_TINT` base color on every pathway neuron, so the real route (including into the nerve cord) shows as faint structure, distinct from activity colors.
+- About panel, in-scene legend, header caption and README updated: new seeds and counts, what the glow means, drive strength listed as speculative. README gets a "2026-10-05: hearing-only rebuild" section.
+
+**Verified:** pipeline run on Chopin and pink noise (no NaN; ~550 neurons reach ≥2 mV at their 95th percentile, the rest show as wiring), then the live app via Playwright + CDP screenshot: two bright clusters at JO/AMMC on each side, faint wiring dots through the brain and nerve cord.
+
+**Still to do:** README screenshots/GIF predate this change and should be re-recorded. A more faithful simulation (finer dt, all inputs rather than only ≥8-synapse edges, possibly on shorter clips) is the open path to genuine propagation further out.

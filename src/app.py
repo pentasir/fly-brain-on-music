@@ -50,20 +50,27 @@ st.markdown(
 
 ABOUT_MD = """
 **Real, from published data:**
-- **Connectome**: FlyWire/CAVE's BANC v888 dataset, real neurons, real synapses, real 3D positions.
-  Subgraph = every neuron within 3 hops downstream of Johnston's Organ (the fly's real auditory
-  sensory organ) → AMMC, filtered to connections with ≥12 synapses.
+- **Connectome**: FlyWire/CAVE's BANC v888 dataset (Bates et al. 2026, *Nature*), one female fly's
+  brain and nerve cord mapped at synapse level: real neurons, real synapses, real 3D positions.
+  Subgraph = every neuron within 3 hops downstream of Johnston's Organ subgroups A and B, the
+  sound-sensitive neurons of the fly's antennal ear (Kamikouchi et al. 2009 and Yorozu et al. 2009,
+  *Nature*; subgroups C and E mainly sense gravity and wind and are left out), filtered to
+  connections with ≥8 synapses: about 10.8k neurons and 30k connections.
 - **Neurotransmitter identity & sign**: from `neurons.csv`'s verified (preferred) or predicted NT type
   per neuron. Acetylcholine = excitatory; GABA, glutamate, and histamine = inhibitory. The glutamate/
   histamine calls are the non-obvious ones: unlike vertebrate CNS, *Drosophila* glutamate mostly acts
   through inhibitory glutamate-gated chloride channels (convention per Lappalainen et al. 2024, *Nature*),
   and histamine is inhibitory via histamine-gated chloride channels (Hardie, 1989, *Nature*).
 - **Neuron dynamics**: real leaky integrate-and-fire equations with published parameters from
-  Shiu et al. 2024, *Nature*, a computational brain model built on this same connectome. Membrane
+  Shiu et al. 2024, *Nature*, a whole-brain model built on FlyWire's brain-only connectome of a
+  different fly. Its parameters are reused here on BANC, not re-fit to it. Membrane
   time constant (20ms) independently matches Gouwens & Wilson 2009's direct electrophysiological
   measurement, a genuine cross-validation between two different sources.
 
 **Speculative, our own modeling layer, not from literature:**
+- **How strongly the seeds are driven**: the drive strength is our own choice, set so the ear neurons
+  fire at tens of spikes per second on typical music. Real single-neuron firing rates for these
+  neurons aren't available to calibrate against.
 - **Audio → neural drive**: no dataset of real fly neural response to music exists anywhere, so this
   mapping (loudness/onset/frequency-band energy/pitch-class energy → synaptic current) is an artistic
   choice, not a validated model.
@@ -71,6 +78,13 @@ ABOUT_MD = """
   frequency-tuning or pitch-tuning annotation, so both the mel-spaced neuron grouping and the 12-way
   pitch-class neuron grouping are deterministic but arbitrary partitions (by neuron ID), not real
   tonotopic or pitch maps.
+
+**What the glow means**: bright points are simulated activity, each neuron's membrane voltage
+relative to its own range over the track, with at least 2 mV of depolarization needed for full
+brightness. In this model, spiking is concentrated in the ear neurons and their first relays
+(AMMC and nearby); further out, neurons mostly show small sub-threshold changes rather than spikes.
+The faint dots everywhere else are the real wiring: the routes the signal could take, including
+down into the nerve cord, shown as structure, not as activity.
 
 **Bottom line**: this is a real wiring diagram with a real spiking-neuron model running on top,
 driven by an artistic (not scientifically validated) audio-input layer. Treat it as connectome-
@@ -170,7 +184,7 @@ def render_setup_controls(use_columns: bool):
     (roomy pre-run layout) or stacked (narrow popover).
     """
     st.caption(
-        "Real FlyWire connectome (~23k neurons, ~76k real synaptic connections). "
+        "Real FlyWire connectome (~10.8k neurons on the hearing pathway, ~30k real synaptic connections). "
         "The wiring is real; the audio-to-activation mapping is a speculative "
         "simulation layer, not a validated model of real fly behavior."
     )

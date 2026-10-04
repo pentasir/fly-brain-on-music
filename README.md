@@ -8,11 +8,11 @@
 
 Ever wondered what a fly's brain looks like while listening to music?
 
-A fruit fly's brain has about 23,000 neurons on its auditory pathway alone, wired by roughly 76,000 real synapses. This project plays it music.
+Start from the roughly 500 sound-sensitive neurons in a fruit fly's ear, follow the real wiring three steps out, and you reach about 10,800 neurons joined by about 30,000 real connections, from the brain's hearing centres down into the nerve cord. This project plays it music.
 
 > The wiring is real. What the music means to it is not, and the project says so plainly.
 
-The wiring diagram comes from [FlyWire](https://flywire.ai) and [CAVE](https://www.cave-connectome.org), a real, complete map of a fly brain down to the individual synapse. Drop in a track, and it drives a real simulation of neurons firing and passing signals to each other, using the same equations and settings that [a published brain model](https://www.nature.com/articles/s41586-024-07763-9) used on this same map. The neurons are real. The synapses are real. What renders afterward is an interactive, audio-synced 3D scene, built from each neuron's true position in the brain.
+The wiring diagram comes from [FlyWire](https://flywire.ai) and [CAVE](https://www.cave-connectome.org), a real map of one fly's brain and nerve cord down to the individual synapse ([BANC](https://www.nature.com/articles/s41586-026-10735-w), published in *Nature* in 2026). Drop in a track, and it drives a real simulation of neurons firing and passing signals to each other, using the same equations and settings that [a published brain model](https://www.nature.com/articles/s41586-024-07763-9) used on FlyWire's map of another fly's brain. The neurons are real. The synapses are real. What renders afterward is an interactive, audio-synced 3D scene, built from each neuron's true position in the brain.
 
 The one part that is not science is the bridge from sound to synapse. No dataset of a fly's real neural response to music exists, so that mapping, loudness and onset and frequency energy translated into synaptic current, is an artistic choice, not a validated model. Call this connectome-constrained generative art, not a claim about how flies hear Chopin. The app's own "About this project" panel draws the line between the two, item by item.
 
@@ -45,11 +45,12 @@ The one part that is not science is the bridge from sound to synapse. No dataset
 ## What's real vs. speculative
 
 **Real, from published data:**
-- **The wiring.** Real neurons, real synapses, real 3D positions, all from the FlyWire/CAVE map of a fly brain. Specifically, every neuron within three steps of the fly's hearing organ and everything it connects to downstream. [Read about the dataset](https://www.cave-connectome.org)
+- **The wiring.** Real neurons, real synapses, real 3D positions, all from the FlyWire/CAVE map of a fly brain. Specifically, every neuron within three steps downstream of the sound-sensitive neurons in the fly's ear (Johnston's Organ subgroups A and B). [Read about the dataset](https://www.cave-connectome.org)
 - **Which neurons excite and which calm things down.** Each neuron's chemical signal type decides whether it switches other neurons on or off, following the same rules the actual research uses. [Read the paper](https://www.nature.com/articles/s41586-024-07763-9)
-- **How neurons fire.** A real, published model of how a neuron builds up charge and fires, run on this same wiring diagram by actual researchers. [Read the paper](https://www.nature.com/articles/s41586-024-07763-9)
+- **How neurons fire.** A real, published model of how a neuron builds up charge and fires, run by actual researchers on FlyWire's brain map of another fly, reused here on BANC. [Read the paper](https://www.nature.com/articles/s41586-024-07763-9)
 
 **Speculative, our own modeling layer:**
+- **How hard the ear neurons are driven, and what the glow shows.** The drive strength is our own choice, set so the ear neurons fire at tens of spikes per second on typical music. Bright points are each neuron's simulated voltage against its own range; most real spiking stays near the ear, and the faint dots further out are the wiring, not activity.
 - **Turning sound into a signal the neurons receive.** No one has ever measured how a fly's brain actually responds to music, so this mapping (how loud, how sudden, which pitches) is our own artistic choice, not a validated model. "Which pitches" comes from a mel spectrogram (frequency bins spaced denser at low pitches, sparser at high, the same shape as real cochlear tuning) with log compression, instead of a plain linear-frequency FFT. Transients (drum hits, plucks) are detected per frequency band rather than once for the whole mix, so a kick drum and a cymbal hit can trigger independently. The mix is also split into percussive and harmonic components before feature extraction (drums vs. sustained tones), which shapes two different response characters: sharp/transient for percussive-heavy moments, smoother/sustained for harmonic ones.
 - **Splitting 8 frequency bands across different neurons.** The public data has no record of which neurons respond to which pitch, so this grouping is made up, just consistent every time you run it. A second, independent 12-way grouping (by pitch class, C through B, from chroma analysis) sits alongside it, so a chord change can visibly shift the response even when loudness and frequency-band energy stay flat.
 - **Optional beat-synced timing.** Off by default, toggleable in the app. Instead of stepping the simulation at a fixed wall-clock rate, this locks frames to the track's own detected beat, so activation can pulse with the actual musical pulse rather than an arbitrary clock. Needs a real, steady beat to make sense, so it silently falls back to fixed-rate timing on material with too few detected beats (very short clips, silence).
@@ -88,8 +89,8 @@ Requires your own FlyWire/CAVE account. See [codex.flywire.ai](https://codex.fly
 ## How it works
 
 1. **`audio_features.py`** listens to the track: how loud, how fast, how sudden each moment is, its energy across 8 mel-spaced frequency bands (log-compressed, cochlear-style spacing, low to high) with per-band transient detection, its energy across 12 pitch classes (chroma), and the percussive/harmonic balance of each moment. Frames can be spaced at a fixed rate or (optionally) locked to the track's detected beat.
-2. **`simulate.py`** feeds that into the real wiring diagram. Roughly 23,000 neurons pass the signal to each other, hop by hop, starting from the hearing organ and spreading outward, the same way a real nerve signal would travel. Seed neurons are split two independent ways -- by frequency band and by pitch class -- so different populations respond to different pitches and different notes. The module's own comments walk through the model in more depth for anyone curious.
-3. **`web_scene.py`** and **`brain_map_3d.py`** draw the result: each neuron placed at its real position in the brain, glowing brighter as it fires, in sync with the track. Brightness is normalized per neuron against its own range over the track, so both broadly active regions and individual high-connectivity "hub" neurons show real quiet-vs-loud contrast rather than sitting pinned at one brightness.
+2. **`simulate.py`** feeds that into the real wiring diagram. About 10,800 neurons pass the signal to each other, hop by hop, starting from the sound-sensitive Johnston's Organ neurons (subgroups A and B) and spreading outward. In practice most of the spiking stays in the ear neurons and their first relays; further out the model shows small sub-threshold voltage changes, and the [2026-10-05 notes](#2026-10-05-hearing-only-rebuild) below explain why. Seed neurons are split two independent ways -- by frequency band and by pitch class -- so different populations respond to different pitches and different notes. The module's own comments walk through the model in more depth for anyone curious.
+3. **`web_scene.py`** and **`brain_map_3d.py`** draw the result: each neuron placed at its real position in the brain, glowing brighter as it fires, in sync with the track. Brightness is normalized per neuron against its own range over the track (with a 2 mV minimum, so tiny wiggles stay dark), and every neuron on the pathway keeps a faint base tint so the real wiring stays visible even where nothing is firing.
 4. **`brain_map.py`** is a simple flat backup drawing (not the real 3D positions), kept on hand in case the real scene ever isn't wanted or available. It isn't part of the running app.
 
 ## Build story
@@ -106,12 +107,25 @@ Some of the fixes were real bugs, not just tuning: activation that snapped insta
 
 What was left, once the simulation could be trusted, was making it legible: a Streamlit `session_state` bug that wiped the entire results view if you so much as touched another widget, a dark theme built to match the scene instead of clashing against Streamlit's default light UI, a loading indicator that nods to the real FlyWire and CAVE segmentation viewer, and finally moving the transport controls outside the 3D viewport instead of floating on top of it.
 
+### 2026-10-05: hearing-only rebuild
+
+An audit while adding the new BANC paper citation found that the "auditory pathway" had been seeded from every neuron in the antennal nerve. That nerve carries more than hearing: of its 4,502 neurons, 2,775 (62%) are olfactory receptors and only 1,192 belong to Johnston's Organ. So most of the network the music was driving was the fly's sense of smell, which is why the antennal lobe and mushroom body lit up so much.
+
+What changed:
+
+- **Seeds are now Johnston's Organ subgroups A and B only** (511 neurons), the sound-sensitive ones per Kamikouchi et al. 2009 and Yorozu et al. 2009. Subgroups C and E, which mainly sense gravity and wind, are left out.
+- **Connection threshold lowered from 12 to 8 synapses**, since the smaller seed set leaves room: 10,771 neurons and 30,380 connections (was 22,878 and 75,947). Fresh 3D positions were pulled from CAVE for every neuron.
+- **Spike counts checked, not just voltages.** On the Chopin demo at the old drive strength, ear neurons fired under 1 Hz on average and nothing downstream spiked at all. In the old smell-heavy network, the downstream activity came from many olfactory neurons converging on each relay. Drive strength was raised from 12 to 30 so the ear neurons fire at tens of Hz. Even so, spiking mostly stops after the first relay in this model.
+- **Display made honest about that.** Each neuron now needs at least 2 mV of depolarization to reach full brightness (before, a 0.01 mV wiggle could be stretched to full glow), and every pathway neuron keeps a faint base tint so the real route, including into the nerve cord, is visible as wiring rather than implied activity.
+- **Citation fix.** The Shiu et al. 2024 model was built on FlyWire's brain-only map of a different fly, not on BANC. The docs previously said "this same connectome". The BANC paper itself (Bates et al. 2026, *Nature*) is now cited too.
+
 The unedited log lives in [`BUILD_LOG.md`](BUILD_LOG.md) if any of that is worth the full account.
 
 ## Credits
 
-- Connectome data: [FlyWire](https://flywire.ai) / [CAVE](https://www.cave-connectome.org), BANC v888 dataset.
-- LIF model parameters: Shiu et al. 2024, *Nature*, "A *Drosophila* computational brain model reveals sensorimotor processing."
+- Connectome data: [FlyWire](https://flywire.ai) / [CAVE](https://www.cave-connectome.org), BANC v888 dataset. Bates et al. 2026, *Nature*, "[Distributed control circuits across a brain-and-cord connectome](https://www.nature.com/articles/s41586-026-10735-w)."
+- LIF model parameters: Shiu et al. 2024, *Nature*, "A *Drosophila* computational brain model reveals sensorimotor processing." Built on FlyWire's brain-only connectome (FAFB); its parameters are reused here on BANC, not re-fit.
+- Hearing neuron subgroups: Kamikouchi et al. 2009, *Nature*, "The neural basis of *Drosophila* gravity-sensing and hearing"; Yorozu et al. 2009, *Nature*, "Distinct sensory representations of wind and near-field sound in the *Drosophila* brain."
 - Neurotransmitter sign convention: Lappalainen et al. 2024, *Nature*; Hardie, 1989, *Nature*.
 - Demo track: Chopin, *Nocturne in E-flat major, Op. 9 No. 2*, performed by Frank Levy, public domain (CC0) via [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Nocturneop9no2-.ogg).
 
