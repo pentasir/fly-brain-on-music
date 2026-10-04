@@ -21,25 +21,25 @@ The one part that is not science is the bridge from sound to synapse. No dataset
 </p>
 
 <p align="center">
-  <img src="screenshots/scene-overview.jpg" width="90%" alt="Full connectome scene, glowing auditory pathway activation">
+  <img src="screenshots/scene-overview.jpg" width="90%" alt="Brain shell with the two Johnston's Organ / AMMC clusters lit by music, faint wiring dots across the brain">
 </p>
 
 <table align="center">
   <tr>
-    <td><img src="screenshots/scene-closeup-1.jpg" width="100%" alt="Close-up of activated neuron clusters, brain shell"></td>
-    <td><img src="screenshots/scene-closeup-2.jpg" width="100%" alt="Close-up of activated neuron clusters, alternate angle"></td>
+    <td><img src="screenshots/scene-closeup-1.jpg" width="100%" alt="Close-up of the active hearing clusters from a side angle"></td>
+    <td><img src="screenshots/scene-closeup-2.jpg" width="100%" alt="Close-up of both hearing clusters below the brain's midline"></td>
   </tr>
 </table>
 
 <table align="center">
   <tr>
-    <td><img src="screenshots/scene-wide-1.jpg" width="100%" alt="Wide view of the brain and nerve cord shell, glowing activation"></td>
-    <td><img src="screenshots/scene-wide-2.jpg" width="100%" alt="Wide view from a lower angle, brain and nerve cord shell"></td>
+    <td><img src="screenshots/scene-wide-1.jpg" width="100%" alt="Wide view of the brain and nerve cord, activity near the ears, wiring visible as faint dots"></td>
+    <td><img src="screenshots/scene-wide-2.jpg" width="100%" alt="Convex hull shell view from a lower angle"></td>
   </tr>
 </table>
 
 <p align="center">
-  <video src="https://github.com/user-attachments/assets/9936f52c-4505-4f35-9957-4152a2787bd8" controls width="90%"></video>
+  <img src="screenshots/scene-demo.gif" width="90%" alt="Animated: the hearing pathway responding to the Chopin demo as the camera orbits">
 </p>
 
 ## What's real vs. speculative
