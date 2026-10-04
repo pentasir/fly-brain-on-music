@@ -236,6 +236,12 @@ def render_setup_controls(use_columns: bool):
     return uploaded, noise_choice, run, status_ph, beat_sync
 
 
+# A session that started before a deploy can still hold a result built by older
+# code (e.g. missing "spike_frames"). Drop it so the visitor gets the setup page
+# again instead of a KeyError.
+if "result" in st.session_state and "spike_frames" not in st.session_state["result"]:
+    del st.session_state["result"]
+
 has_result = "result" in st.session_state
 
 if not has_result:
