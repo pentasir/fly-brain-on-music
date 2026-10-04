@@ -37,7 +37,6 @@ REGION_GROUPS = [
     ("other central brain", (0.07, 0.10, 0.20), None, None),
 ]
 VNC_HINTS = ("TCT", "T1_", "T2_", "T3_", "ABD", "MVAC")
-ROUTE_HOP2_TOP = 1200  # strongest hop1 -> hop2 connections drawn as routes
 
 
 def _region_group(region, cell_class):
@@ -56,43 +55,6 @@ def _region_group(region, cell_class):
 def _load_node_meta():
     import pandas as pd
     return pd.read_csv(DATA_DIR / "auditory_neurons.csv").set_index("root_id")
-
-
-def _route_edges(kept_ids, node_hop_kept, meta):
-    """Real connections drawn as signal routes, as (source, target) index pairs
-    into the kept-node arrays: every seed -> hop1 edge, the strongest
-    hop1 -> hop2 edges, and for every leg/wing motor neuron the strongest real
-    path back to the ear (at each step, the predecessor one hop closer with the
-    most synapses)."""
-    import pickle
-    with open(DATA_DIR / "auditory_graph.gpickle", "rb") as f:
-        graph = pickle.load(f)
-    index = {int(rid): i for i, rid in enumerate(kept_ids)}
-    hop = {int(rid): int(h) for rid, h in zip(kept_ids, node_hop_kept)}
-    edges = set()
-    hop12 = []
-    for u, v, attrs in graph.edges(data=True):
-        u, v = int(u), int(v)
-        if u not in index or v not in index:
-            continue
-        if hop[u] == 0 and hop[v] == 1:
-            edges.add((index[u], index[v]))
-        elif hop[u] == 1 and hop[v] == 2:
-            hop12.append((attrs.get("weight", 1), index[u], index[v]))
-    for _, a, b in sorted(hop12, reverse=True)[:ROUTE_HOP2_TOP]:
-        edges.add((a, b))
-    motor_ids = [rid for rid in index if "motor_neuron" in str(meta.loc[rid, "cell_class"] if rid in meta.index else "")]
-    for rid in motor_ids:
-        node = rid
-        while hop.get(node, 0) > 0:
-            preds = [(graph[p][node].get("weight", 1), int(p)) for p in graph.predecessors(node)
-                     if int(p) in index and hop.get(int(p), -1) == hop[node] - 1]
-            if not preds:
-                break
-            _, best = max(preds)
-            edges.add((index[best], index[node]))
-            node = best
-    return sorted(edges)
 
 
 def _round(arr, decimals):
@@ -185,7 +147,7 @@ def build_scene_html(
     else:
         node_cmax = np.full(len(fx), cmax)
 
-    # region colors, spike record and signal routes, all re-indexed to kept nodes
+    # region colors and spike record, all re-indexed to kept nodes
     meta = _load_node_meta()
     region_group = [
         _region_group(meta.loc[rid, "region"], meta.loc[rid, "cell_class"]) if rid in meta.index else 6
@@ -197,8 +159,6 @@ def build_scene_html(
     for idx, rates in (spike_frames or []):
         pairs = [(int(kept_index[i]), r) for i, r in zip(idx, rates) if kept_index[i] >= 0]
         spikes_out.append([[p[0] for p in pairs], [p[1] for p in pairs]])
-    node_hop_kept = node_hop[has_pos] if node_hop is not None else np.zeros(len(kept_ids), dtype=int)
-    routes = _route_edges(kept_ids, node_hop_kept, meta)
 
     times = [t for t, _ in node_snapshots]
     frames_values = [_round(state[has_pos], 3) for _, state in node_snapshots]
@@ -217,7 +177,6 @@ def build_scene_html(
         "regionColors": [list(c) for _, c, _, _ in REGION_GROUPS],
         "spikeTimes": [float(t) for t in (spike_times if spike_times is not None else [])],
         "spikes": spikes_out,
-        "routes": [i for e in routes for i in e],
         "brainHull": {"vertices": _round(brain_hull_verts.flatten(), 2), "faces": hulls["brain"]["faces"]},
         "vncHull": {"vertices": _round(vnc_hull_verts.flatten(), 2), "faces": hulls["vnc"]["faces"]},
     }
@@ -237,9 +196,8 @@ def build_scene_html(
       <div><span style="color:#5a7fd6;">&#9679;</span> blue shell = brain (from real neuron positions)</div>
       <div><span style="color:#8f5ad6;">&#9679;</span> purple shell = nerve cord (from real neuron positions)</div>
       <div><span style="color:#f0c527;">&#9679;</span> bright points = simulated activity on the hearing pathway (Johnston's Organ A/B &#8594; AMMC &#8594; downstream)</div>
-      <details style="margin-top:4px;"><summary style="cursor:pointer; color:#ccc;">flashes, lines and region colors</summary>
+      <details style="margin-top:4px;"><summary style="cursor:pointer; color:#ccc;">flashes and region colors</summary>
       <div><span style="color:#fff3c4;">&#10022;</span> flashes = spikes, drawn at each neuron's simulated firing rate</div>
-      <div><span style="color:#ffb35a;">&#9472;</span> lines = real connections: ear to first relay, the strongest next links, and the strongest path to every leg and wing motor neuron; a pulse runs along a line when its source spikes</div>
       <div style="margin-top:4px;">faint dots = the real wiring, colored by region:</div>
       {region_legend}
       </details>
@@ -405,8 +363,8 @@ controls.update();
 
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
-// threshold sits above the dim wiring colors, so only activity, flashes and
-// route pulses bloom; the structure stays crisp
+// threshold sits above the dim wiring colors, so only activity and flashes
+// bloom; the structure stays crisp
 const bloom = new UnrealBloomPass(new THREE.Vector2(width, height), 1.5, 0.6, 0.2);
 composer.addPass(bloom);
 
@@ -517,57 +475,6 @@ function applyActivation(values) {{
 }}
 
 
-// Signal routes: real connections from the graph (see _route_edges), drawn as
-// faint lines. When a route's source neuron flashes, a pulse travels along it.
-const routeIdx = DATA.routes;
-const nRoutes = routeIdx.length / 2;
-const routePos = new Float32Array(nRoutes * 6);
-const routeT = new Float32Array(nRoutes * 2);
-const routeFire = new Float32Array(nRoutes * 2).fill(-100);
-const outgoing = Array.from({{ length: nFg }}, () => []);
-for (let e = 0; e < nRoutes; e++) {{
-  const a = routeIdx[2*e], b = routeIdx[2*e+1];
-  for (let d = 0; d < 3; d++) {{
-    routePos[e*6 + d] = DATA.fgPositions[a*3 + d];
-    routePos[e*6 + 3 + d] = DATA.fgPositions[b*3 + d];
-  }}
-  routeT[e*2] = 0; routeT[e*2 + 1] = 1;
-  outgoing[a].push(e);
-}}
-const routeGeo = new THREE.BufferGeometry();
-routeGeo.setAttribute('position', new THREE.Float32BufferAttribute(routePos, 3));
-routeGeo.setAttribute('aT', new THREE.Float32BufferAttribute(routeT, 1));
-const routeFireAttr = new THREE.Float32BufferAttribute(routeFire, 1);
-routeGeo.setAttribute('aFire', routeFireAttr);
-const PULSE_DUR = 0.7;  // seconds for a pulse to run the length of one connection
-const routeMat = new THREE.ShaderMaterial({{
-  uniforms: {{ uTime: {{ value: 0 }} }},
-  vertexShader: `
-    attribute float aT;
-    attribute float aFire;
-    varying float vT;
-    varying float vFire;
-    void main() {{
-      vT = aT; vFire = aFire;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    }}`,
-  fragmentShader: `
-    uniform float uTime;
-    varying float vT;
-    varying float vFire;
-    void main() {{
-      float phase = (uTime - vFire) / ${{PULSE_DUR.toFixed(2)}};
-      float pulse = (phase >= 0.0 && phase <= 1.3) ? exp(-pow((vT - phase) * 5.0, 2.0)) : 0.0;
-      vec3 baseCol = vec3(0.10, 0.16, 0.26) * 0.07;  // additive: thousands of overlapping lines must stay dim
-      vec3 pulseCol = vec3(1.0, 0.62, 0.25) * pulse * 1.6;
-      gl_FragColor = vec4(baseCol + pulseCol, 1.0);
-    }}`,
-  transparent: true,
-  depthWrite: false,
-  blending: THREE.AdditiveBlending,
-}});
-scene.add(new THREE.LineSegments(routeGeo, routeMat));
-
 // Spike flashes: the simulation records each neuron's firing rate per audio
 // frame; here each neuron flashes at that rate (Poisson draws per animation
 // tick). Exact spike timing within a frame isn't stored, because the audio
@@ -580,21 +487,17 @@ function spikeFrameAt(t) {{
   while (lo < hi) {{ const mid = (lo + hi + 1) >> 1; if (ts[mid] <= t) lo = mid; else hi = mid - 1; }}
   return lo;
 }}
-function stepSpikes(t, dt, clock) {{
+function stepSpikes(t, dt) {{
   const decay = Math.exp(-dt / FLASH_DECAY_S);
   for (let i = 0; i < nFg; i++) flash[i] *= decay;
   const k = spikeFrameAt(t);
   if (k < 0 || !DATA.spikes[k]) return;
   const [idx, rates] = DATA.spikes[k];
-  let fired = false;
   for (let j = 0; j < idx.length; j++) {{
     if (Math.random() < 1 - Math.exp(-rates[j] * dt)) {{
-      const i = idx[j];
-      flash[i] = 1.0;
-      for (const e of outgoing[i]) {{ routeFire[e*2] = clock; routeFire[e*2 + 1] = clock; fired = true; }}
+      flash[idx[j]] = 1.0;
     }}
   }}
-  if (fired) routeFireAttr.needsUpdate = true;
 }}
 
 function interpolatedValues(t) {{
@@ -667,11 +570,9 @@ function animate() {{
   const now = performance.now();
   const dt = Math.min((now - lastTick) / 1000, 0.1);
   lastTick = now;
-  const clock = (now - clockStart) / 1000;
-  routeMat.uniforms.uTime.value = clock;
   if (player.duration) {{
     if (!player.paused && !player.ended) {{
-      stepSpikes(player.currentTime, dt, clock);
+      stepSpikes(player.currentTime, dt);
       const target = interpolatedValues(player.currentTime);
       for (let i = 0; i < nFg; i++) currentDisplay[i] += (target[i] - currentDisplay[i]) * FOLLOW;
     }} else {{

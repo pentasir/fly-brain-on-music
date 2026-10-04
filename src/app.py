@@ -86,9 +86,7 @@ brightness. In this model, spiking is concentrated in the ear neurons and their 
 The faint dots everywhere else are the real wiring: the routes the signal could take, including
 down into the nerve cord, shown as structure, not as activity, colored by BANC's region labels.
 Flashes are spikes, drawn at each neuron's simulated firing rate for that moment (exact spike timing
-within a frame isn't stored). Lines are real connections: ear to first relay, the strongest next
-links, and the strongest real path from the ear to every leg and wing motor neuron. A pulse runs
-along a line only when its source neuron spikes, which is why most pulses stay near the ears.
+within a frame isn't stored).
 
 **Bottom line**: this is a real wiring diagram with a real spiking-neuron model running on top,
 driven by an artistic (not scientifically validated) audio-input layer. Treat it as connectome-

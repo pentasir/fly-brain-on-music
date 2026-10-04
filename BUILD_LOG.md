@@ -521,3 +521,9 @@ User feedback after the hearing-only rebuild: "the model is visually less impres
 **Legend** made collapsible (`<details>`): shells and bright points always visible; flashes, lines and the region color key under "flashes, lines and region colors."
 
 **Verified** in the live local app via Playwright + CDP captures (scene colors only update while audio plays, so all captures were taken mid-playback at ~205 s, the loudest stretch of the Chopin demo). README stills and `scene-demo.gif` recaptured with the new look.
+
+## 2026-10-05 (cont.): Signal routes removed
+
+User feedback on the live app: "pathways are too ugly. remove". Seen live, the 2,137 route lines bundle into a dense grey sheaf from the ear clusters up through the neck, which reads as clutter, not anatomy, and the pulses were rarely visible anyway. Removed the whole layer: `_route_edges`, `ROUTE_HOP2_TOP`, the `routes` payload, the `LineSegments` pulse shader and its legend line. Kept bloom, region colors and spike flashes. Also smaller embedded HTML.
+
+Same session, separate fix: visitors whose browser session predated the visual-pass deploy hit `KeyError: 'spike_frames'`, because Streamlit keeps each session's last result in memory across a code reload. `app.py` now drops a stored result missing that key and shows the setup page instead.
